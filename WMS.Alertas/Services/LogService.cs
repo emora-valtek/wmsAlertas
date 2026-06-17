@@ -5,11 +5,11 @@ using WMS.Alertas.Interfaces;
 
 namespace WMS.Alertas.Services;
 
-public class AlertaEjecucionLogService : IAlertaEjecucionLogService
+public class LogService : IAlertaEjecucionLogService
 {
     private readonly IConfiguration _configuration;
 
-    public AlertaEjecucionLogService(IConfiguration configuration)
+    public LogService(IConfiguration configuration)
     {
         _configuration = configuration;
     }

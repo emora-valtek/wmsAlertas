@@ -3,6 +3,7 @@
     public class PendienteIngresoDetalleDto
     {
         public string NumeroIngreso { get; set; } = string.Empty;
+        public string Documento { get; set; } = string.Empty;
         public string CodigoProducto { get; set; } = string.Empty;
         public string Lote { get; set; } = string.Empty;
         public long Secuencia { get; set; }

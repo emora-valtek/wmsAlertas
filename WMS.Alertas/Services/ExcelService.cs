@@ -7,7 +7,8 @@ public class ExcelService
 {
     public byte[] GenerarExcelPendienteIngreso(
         List<PendienteIngresoDto> resumen,
-        List<PendienteIngresoDetalleDto> detalle)
+        List<PendienteIngresoDetalleDto> detalle,
+        bool incluirDocumento = false)
     {
         using var workbook = new XLWorkbook();
 
@@ -15,27 +16,39 @@ public class ExcelService
 
         var wsResumen = workbook.Worksheets.Add("Resumen");
 
-        wsResumen.Cell(1, 1).Value = "N° Ingreso";
-        wsResumen.Cell(1, 2).Value = "Código Producto";
-        wsResumen.Cell(1, 3).Value = "Lote";
-        wsResumen.Cell(1, 4).Value = "Fecha Creación";
-        wsResumen.Cell(1, 5).Value = "Cantidad";
-        wsResumen.Cell(1, 6).Value = "Estado";
-        wsResumen.Cell(1, 7).Value = "Usuario Creación";
-        wsResumen.Cell(1, 8).Value = "Días Sin Ingresar";
+        var col = 1;
+
+        wsResumen.Cell(1, col++).Value = "N° Ingreso";
+
+        if (incluirDocumento)
+            wsResumen.Cell(1, col++).Value = "Documento";
+
+        wsResumen.Cell(1, col++).Value = "Código Producto";
+        wsResumen.Cell(1, col++).Value = "Lote";
+        wsResumen.Cell(1, col++).Value = "Fecha Creación";
+        wsResumen.Cell(1, col++).Value = "Cantidad";
+        wsResumen.Cell(1, col++).Value = "Estado";
+        wsResumen.Cell(1, col++).Value = "Usuario Creación";
+        wsResumen.Cell(1, col++).Value = "Días Sin Ingresar";
 
         var row = 2;
 
         foreach (var item in resumen)
         {
-            wsResumen.Cell(row, 1).Value = item.NumeroIngreso;
-            wsResumen.Cell(row, 2).Value = item.CodigoProducto;
-            wsResumen.Cell(row, 3).Value = item.Lote;
-            wsResumen.Cell(row, 4).Value = item.FechaCreacion;
-            wsResumen.Cell(row, 5).Value = item.CantidadExistencias;
-            wsResumen.Cell(row, 6).Value = item.Estado;
-            wsResumen.Cell(row, 7).Value = item.UsuarioCreacion;
-            wsResumen.Cell(row, 8).Value = item.DiasSinIngresar;
+            col = 1;
+
+            wsResumen.Cell(row, col++).Value = item.NumeroIngreso;
+
+            if (incluirDocumento)
+                wsResumen.Cell(row, col++).Value = item.Documento;
+
+            wsResumen.Cell(row, col++).Value = item.CodigoProducto;
+            wsResumen.Cell(row, col++).Value = item.Lote;
+            wsResumen.Cell(row, col++).Value = item.FechaCreacion;
+            wsResumen.Cell(row, col++).Value = item.CantidadExistencias;
+            wsResumen.Cell(row, col++).Value = item.Estado;
+            wsResumen.Cell(row, col++).Value = item.UsuarioCreacion;
+            wsResumen.Cell(row, col++).Value = item.DiasSinIngresar;
 
             row++;
         }
@@ -52,27 +65,39 @@ public class ExcelService
 
         var wsDetalle = workbook.Worksheets.Add("Detalle");
 
-        wsDetalle.Cell(1, 1).Value = "N° Ingreso";
-        wsDetalle.Cell(1, 2).Value = "Código Producto";
-        wsDetalle.Cell(1, 3).Value = "Lote";
-        wsDetalle.Cell(1, 4).Value = "Secuencia";
-        wsDetalle.Cell(1, 5).Value = "Fecha Creación";
-        wsDetalle.Cell(1, 6).Value = "Estado";
-        wsDetalle.Cell(1, 7).Value = "Usuario Creación";
-        wsDetalle.Cell(1, 8).Value = "Días Sin Ingresar";
+        col = 1;
+
+        wsDetalle.Cell(1, col++).Value = "N° Ingreso";
+
+        if (incluirDocumento)
+            wsDetalle.Cell(1, col++).Value = "Documento";
+
+        wsDetalle.Cell(1, col++).Value = "Código Producto";
+        wsDetalle.Cell(1, col++).Value = "Lote";
+        wsDetalle.Cell(1, col++).Value = "Secuencia";
+        wsDetalle.Cell(1, col++).Value = "Fecha Creación";
+        wsDetalle.Cell(1, col++).Value = "Estado";
+        wsDetalle.Cell(1, col++).Value = "Usuario Creación";
+        wsDetalle.Cell(1, col++).Value = "Días Sin Ingresar";
 
         row = 2;
 
         foreach (var item in detalle)
         {
-            wsDetalle.Cell(row, 1).Value = item.NumeroIngreso;
-            wsDetalle.Cell(row, 2).Value = item.CodigoProducto;
-            wsDetalle.Cell(row, 3).Value = item.Lote;
-            wsDetalle.Cell(row, 4).Value = item.Secuencia;
-            wsDetalle.Cell(row, 5).Value = item.FechaCreacion;
-            wsDetalle.Cell(row, 6).Value = item.Estado;
-            wsDetalle.Cell(row, 7).Value = item.UsuarioCreacion;
-            wsDetalle.Cell(row, 8).Value = item.DiasSinIngresar;
+            col = 1;
+
+            wsDetalle.Cell(row, col++).Value = item.NumeroIngreso;
+
+            if (incluirDocumento)
+                wsDetalle.Cell(row, col++).Value = item.Documento;
+
+            wsDetalle.Cell(row, col++).Value = item.CodigoProducto;
+            wsDetalle.Cell(row, col++).Value = item.Lote;
+            wsDetalle.Cell(row, col++).Value = item.Secuencia;
+            wsDetalle.Cell(row, col++).Value = item.FechaCreacion;
+            wsDetalle.Cell(row, col++).Value = item.Estado;
+            wsDetalle.Cell(row, col++).Value = item.UsuarioCreacion;
+            wsDetalle.Cell(row, col++).Value = item.DiasSinIngresar;
 
             row++;
         }
@@ -90,7 +115,4 @@ public class ExcelService
 
         return stream.ToArray();
     }
-
-
-
 }

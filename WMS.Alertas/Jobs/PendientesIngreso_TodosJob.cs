@@ -4,17 +4,17 @@ using WMS.Alertas.Services;
 
 namespace WMS.Alertas.Jobs;
 
-public class PendientesIngresoJob
+public class PendientesIngreso_TodosJob
 {
-    private readonly AlertaPendienteIngresoService _alertaService;
+    private readonly AlertaPendienteIngreso_TodosService _alertaService;
     private readonly CorreoService _correoService;
     private readonly ExcelService _excelService;
-    private readonly AlertaCorreoDestinoService _correoDestinoService;
+    private readonly CorreoDestinoService _correoDestinoService;
     private readonly IAlertaEjecucionLogService _logService;
 
-    public PendientesIngresoJob(
-        AlertaPendienteIngresoService alertaService,
-        CorreoService correoService, ExcelService excelService, AlertaCorreoDestinoService correoDestinoService, IAlertaEjecucionLogService alertaEjecucionLogService)
+    public PendientesIngreso_TodosJob(
+        AlertaPendienteIngreso_TodosService alertaService,
+        CorreoService correoService, ExcelService excelService, CorreoDestinoService correoDestinoService, IAlertaEjecucionLogService alertaEjecucionLogService)
     {
         _alertaService = alertaService;
         _correoService = correoService;
@@ -26,23 +26,24 @@ public class PendientesIngresoJob
     public async Task Ejecutar()
     {
         var logId = await _logService.Iniciar(
-        "PENDIENTE_INGRESO");
+        "PENDIENTE_INGRESO_TODOS");
 
         try
         {
-            var pendientes = await _alertaService.ObtenerPendientesIngreso();
+            var pendientes = await _alertaService.ObtenerPendientesIngresoTodos();
 
             if (!pendientes.Any())
                 return;
 
             var html = new StringBuilder();
 
-            html.AppendLine("<h3>Alerta WMS - Existencias pendientes de ingreso</h3>");
-            html.AppendLine("<p>Se encontraron existencias pendientes de ingreso con más de 5 días.</p>");
+            html.AppendLine("<h3>Alerta WMS - Existencias Pendientes de ingreso</h3>");
+            html.AppendLine("<p>Se encontraron existencias Pendientes de ingreso con más de 5 días.</p>");
 
             html.AppendLine("<table border='1' cellpadding='5' cellspacing='0'>");
             html.AppendLine("<tr>");
             html.AppendLine("<th>Ingreso</th>");
+            html.AppendLine("<th>Documento</th>");
             html.AppendLine("<th>Producto</th>");
             html.AppendLine("<th>Lote</th>");
             html.AppendLine("<th>Fecha creación</th>");
@@ -55,6 +56,7 @@ public class PendientesIngresoJob
             {
                 html.AppendLine("<tr>");
                 html.AppendLine($"<td>{item.NumeroIngreso}</td>");
+                html.AppendLine($"<td>{item.Documento}</td>");
                 html.AppendLine($"<td>{item.CodigoProducto}</td>");
                 html.AppendLine($"<td>{item.Lote}</td>");
                 html.AppendLine($"<td>{item.FechaCreacion:dd-MM-yyyy}</td>");
@@ -66,23 +68,23 @@ public class PendientesIngresoJob
 
             html.AppendLine("</table>");
 
-            var detalle = await _alertaService.ObtenerPendientesIngresoDetalle();
-            var destinatarios = await _correoDestinoService.ObtenerCorreos("PendienteIngreso");
+            var detalle = await _alertaService.ObtenerPendientesIngresoDetalleTodos();
+            var destinatarios = await _correoDestinoService.ObtenerCorreos("PendienteIngresoTodos");
 
             var excelBytes = _excelService.GenerarExcelPendienteIngreso(
                 pendientes,
-                detalle);
+                detalle, true);
 
             await _correoService.EnviarCorreoPrueba(
                 destinatarios,
-                "Prueba Alerta WMS - Existencias pendientes de ingreso",
+                "Prueba Alerta WMS - Existencias Pendientes de ingreso",
                 html.ToString(),
                 excelBytes,
                 $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");
 
             //await _correoService.EnviarCorreo(
             //    destinatarios,
-            //    "Alerta WMS - Existencias pendientes de ingreso",
+            //    "Alerta WMS - Existencias Pendientes de ingreso",
             //    html.ToString(),
             //    excelBytes,
             //    $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");

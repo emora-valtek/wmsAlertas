@@ -5,34 +5,36 @@ using WMS.Alertas.Models;
 
 namespace WMS.Alertas.Services;
 
-public class AlertaPendienteIngresoService
+public class AlertaPendienteIngreso_TodosService
 {
     private readonly IConfiguration _configuration;
 
-    public AlertaPendienteIngresoService(IConfiguration configuration)
+    public AlertaPendienteIngreso_TodosService(IConfiguration configuration)
     {
         _configuration = configuration;
     }
 
-    public async Task<List<PendienteIngresoDto>> ObtenerPendientesIngreso()
+    //obtiene la lista de productos pendientes de ingreso de Mercadería
+    public async Task<List<PendienteIngresoDto>> ObtenerPendientesIngresoTodos()
     {
         using var connection = new SqlConnection(
             _configuration.GetConnectionString("DefaultConnection"));
 
         var resultado = await connection.QueryAsync<PendienteIngresoDto>(
-            "spAlertaExistenciasPendientesIngreso",
+            "spAlerta_PendIngresoTodosObtener",
             commandType: CommandType.StoredProcedure);
 
         return resultado.ToList();
     }
 
-    public async Task<List<PendienteIngresoDetalleDto>> ObtenerPendientesIngresoDetalle()
+    //obtiene el detalle de las existencias pendientes de ingreso de Mercadería
+    public async Task<List<PendienteIngresoDetalleDto>> ObtenerPendientesIngresoDetalleTodos()
     {
         using var connection = new SqlConnection(
             _configuration.GetConnectionString("DefaultConnection"));
 
         var resultado = await connection.QueryAsync<PendienteIngresoDetalleDto>(
-            "spAlertaPendientesIngresoDetalle",
+            "spAlerta_PendIngresoTodosDetalle",
             commandType: CommandType.StoredProcedure);
 
         return resultado.ToList();

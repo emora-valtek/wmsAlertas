@@ -4,11 +4,11 @@ using System.Data;
 
 namespace WMS.Alertas.Services;
 
-public class AlertaCorreoDestinoService
+public class CorreoDestinoService
 {
     private readonly IConfiguration _configuration;
 
-    public AlertaCorreoDestinoService(IConfiguration configuration)
+    public CorreoDestinoService(IConfiguration configuration)
     {
         _configuration = configuration;
     }

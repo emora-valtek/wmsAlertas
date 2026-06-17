@@ -70,6 +70,7 @@ public class CorreoService
         await smtp.SendMailAsync(message);
     }
 
+    //pruebas para desarrollo
     public async Task EnviarCorreoPrueba(
     List<string> destinatarios,
     string asunto,
