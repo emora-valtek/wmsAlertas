@@ -46,7 +46,7 @@ app.UseHangfireDashboard("/hangfire");
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_ProduccionPropia");
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Mercaderia");
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Todos");
-RecurringJob.RemoveIfExists("Alerta_SAC_AsignadoSinPL");
+RecurringJob.RemoveIfExists("Alerta_SAC_AsignadoSinPL"); 
 
 //para pruebas
 using (var scope = app.Services.CreateScope())
