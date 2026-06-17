@@ -1,0 +1,6 @@
+@WMS.Alertas_HostAddress = http://localhost:5249
+
+GET {{WMS.Alertas_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
