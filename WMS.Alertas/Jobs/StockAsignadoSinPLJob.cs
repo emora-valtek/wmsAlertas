@@ -33,7 +33,14 @@ public class StockAsignadoSinPLJob
             var asignados = await _alertaService.ObtenerStockAsignadoSinPL();
 
             if (!asignados.Any())
+            {
+                await _logService.FinalizarOk(
+                    logId,
+                    0,
+                    "Sin registros para enviar");
+
                 return;
+            }
 
             var grupos = asignados
                 .Where(x => !string.IsNullOrWhiteSpace(x.Correo))
@@ -50,7 +57,7 @@ public class StockAsignadoSinPLJob
                     "Las siguientes Notas de venta presentan productos con stock asignado sin Packing List generado. Por favor revisa los siguientes casos:",
                     grupo.ToList());
 
-                await _correoService.EnviarCorreoPrueba(
+                await _correoService.EnviarCorreo(
                     new List<string> { grupo.Key.Correo! },
                     "Alerta WMS - Stock asignado sin PL",
                     html);
@@ -66,7 +73,7 @@ public class StockAsignadoSinPLJob
                     asignados.ToList(),
                     incluirResponsable: true);
 
-                await _correoService.EnviarCorreoPrueba(
+                await _correoService.EnviarCorreo(
                     correosResumen,
                     "Alerta WMS - Stock asignado sin PL",
                     htmlResumen);

@@ -75,19 +75,19 @@ public class PendientesIngreso_MercaderiaJob
                 pendientes,
                 detalle, true);
 
-            await _correoService.EnviarCorreoPrueba(
-                destinatarios,
-                "Prueba Alerta WMS - Existencias Pendientes de ingreso",
-                html.ToString(),
-                excelBytes,
-                $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");
-
-            //await _correoService.EnviarCorreo(
+            //await _correoService.EnviarCorreoPrueba(
             //    destinatarios,
-            //    "Alerta WMS - Existencias Pendientes de ingreso",
+            //    "Prueba Alerta WMS - Existencias Pendientes de ingreso",
             //    html.ToString(),
             //    excelBytes,
             //    $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");
+
+            await _correoService.EnviarCorreo(
+                destinatarios,
+                "Alerta WMS - Existencias Pendientes de ingreso",
+                html.ToString(),
+                excelBytes,
+                $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");
 
             await _logService.FinalizarOk(
                 logId,
