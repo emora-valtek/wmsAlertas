@@ -62,11 +62,12 @@ RecurringJob.RemoveIfExists("Alerta_PackingList_Modificado");
 // Modo de prueba: los demás jobs permanecen eliminados de Hangfire.
 // Restaurar sus AddOrUpdate antes de publicar en producción.
 
-// Procesa alertas por modificaciones de Packing List cada dos minutos.
+// Procesa alertas por modificaciones de Packing List cada dos minutos,
+// de lunes a viernes entre las 08:00 y las 17:58.
 RecurringJob.AddOrUpdate<PackingListModificadoJob>(
     "Alerta_PackingList_Modificado",
     x => x.Ejecutar(),
-    "*/2 * * * *",
+    "*/2 8-17 * * 1-5",
     new RecurringJobOptions
     {
         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
