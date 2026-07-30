@@ -32,8 +32,13 @@ public class PendientesIngreso_MercaderiaJob
         {
             var pendientes = await _alertaService.ObtenerPendientesIngresoMercaderia();
 
-            if (!pendientes.Any())
+            if (!pendientes.Any()) {
+                await _logService.FinalizarOk(
+                    logId,
+                    0,
+                    "Sin registros para enviar");
                 return;
+            }
 
             var html = new StringBuilder();
 

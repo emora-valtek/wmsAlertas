@@ -32,8 +32,13 @@ public class PendientesIngreso_TodosJob
         {
             var pendientes = await _alertaService.ObtenerPendientesIngresoTodos();
 
-            if (!pendientes.Any())
+            if (!pendientes.Any()) {
+                await _logService.FinalizarOk(
+                    logId,
+                    0,
+                    "Sin registros para enviar");
                 return;
+            }
 
             var html = new StringBuilder();
 
