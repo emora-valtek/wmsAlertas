@@ -86,8 +86,7 @@ public class PackingListModificadoJob
                         grupo.Key.PackingListId,
                         items);
 
-                    // Modo de prueba: CorreoService redirige el envío a emora@valtek.cl.
-                    await _correoService.EnviarCorreoPrueba(
+                    await _correoService.EnviarCorreo(
                         new List<string> { correo },
                         $"Aviso WMS - Packing List {grupo.Key.PackingListId} modificado",
                         html);
