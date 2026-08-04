@@ -7,8 +7,6 @@ namespace WMS.Alertas.Jobs;
 
 public class StockAsignadoSinPLJob
 {
-    private static readonly bool ModoPrueba = true;
-
     private readonly AlertaStockAsignadoSinPLService _alertaService;
     private readonly CorreoService _correoService;
     private readonly CorreoDestinoService _correoDestinoService;
@@ -37,47 +35,6 @@ public class StockAsignadoSinPLJob
             if (pendientes.CantidadTotal == 0)
             {
                 await _logService.FinalizarOk(logId, 0, "Sin registros para enviar");
-                return;
-            }
-
-            if (ModoPrueba)
-            {
-                var vendedores = pendientes.StockSinPackingList
-                    .Select(x => new { x.Correo, x.Nombre })
-                    .Concat(pendientes.PackingListsDevueltos.Select(x => new { x.Correo, x.Nombre }))
-                    .GroupBy(x => new { x.Correo, x.Nombre })
-                    .Select(x => x.Key)
-                    .OrderBy(x => x.Nombre)
-                    .ThenBy(x => x.Correo)
-                    .ToList();
-
-                var vendedorPrueba = vendedores.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Correo))
-                    ?? vendedores.First();
-
-                var stockSinPackingList = pendientes.StockSinPackingList
-                    .Where(x => x.Correo == vendedorPrueba.Correo && x.Nombre == vendedorPrueba.Nombre)
-                    .ToList();
-
-                var packingListsDevueltos = pendientes.PackingListsDevueltos
-                    .Where(x => x.Correo == vendedorPrueba.Correo && x.Nombre == vendedorPrueba.Nombre)
-                    .ToList();
-
-                var htmlPrueba = ArmarHtmlPendientesGestionSac(
-                    $"Hola {vendedorPrueba.Nombre},",
-                    "Los siguientes casos requieren atención por parte de SAC:",
-                    stockSinPackingList,
-                    packingListsDevueltos);
-
-                await _correoService.EnviarCorreoPrueba(
-                    new List<string>(),
-                    "Alerta WMS - Casos pendientes para SAC",
-                    htmlPrueba);
-
-                await _logService.FinalizarOk(
-                    logId,
-                    stockSinPackingList.Count + packingListsDevueltos.Count,
-                    $"Prueba del correo de {vendedorPrueba.Nombre} enviada a emora@valtek.cl");
-
                 return;
             }
 
