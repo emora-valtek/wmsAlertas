@@ -14,16 +14,20 @@ namespace WMS.Alertas.Services
             _configuration = configuration;
         }
 
-        public async Task<List<StockAsignadoSinPL>> ObtenerStockAsignadoSinPL()
+        public async Task<PendientesGestionSacResultado> ObtenerPendientesGestionSac()
         {
             using var connection = new SqlConnection(
                 _configuration.GetConnectionString("DefaultConnection"));
 
-            var resultado = await connection.QueryAsync<StockAsignadoSinPL>(
+            using var resultados = await connection.QueryMultipleAsync(
                 "spAlerta_StockAsignadoSinPL",
                 commandType: CommandType.StoredProcedure);
 
-            return resultado.ToList();
+            return new PendientesGestionSacResultado
+            {
+                StockSinPackingList = (await resultados.ReadAsync<StockAsignadoSinPL>()).ToList(),
+                PackingListsDevueltos = (await resultados.ReadAsync<PackingListDevueltoSac>()).ToList()
+            };
         }
     }
 }

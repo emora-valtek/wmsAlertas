@@ -37,6 +37,8 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
+var modoPruebaAsignadosSinPL = true;
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -54,6 +56,13 @@ RecurringJob.RemoveIfExists("Alerta_SAC_AsignadoSinPL");
 RecurringJob.RemoveIfExists("Alerta_PackingList_Modificado");
 RecurringJob.RemoveIfExists("Alerta_LoteReservado_Minimo");
 
+if (modoPruebaAsignadosSinPL)
+{
+    // Ejecuta una sola vez al iniciar la aplicación para evitar correos repetidos.
+    BackgroundJob.Enqueue<StockAsignadoSinPLJob>(x => x.Ejecutar());
+}
+else
+{
 // Producción propia: pendientes de ingreso, lunes a viernes a las 08:30.
 RecurringJob.AddOrUpdate<PendientesIngreso_PpropiaJob>(
     "Alerta_PendientesIngreso_ProduccionPropia",
@@ -83,7 +92,6 @@ RecurringJob.AddOrUpdate<PendientesIngreso_TodosJob>(
     {
         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
     });
-
 // Stock asignado sin Packing List, lunes a viernes a las 09:00.
 RecurringJob.AddOrUpdate<StockAsignadoSinPLJob>(
     "Alerta_SAC_AsignadoSinPL",
@@ -114,5 +122,6 @@ RecurringJob.AddOrUpdate<PackingListModificadoJob>(
     {
         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
     });
+}
 
 app.Run();
