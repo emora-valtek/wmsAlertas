@@ -7,8 +7,14 @@ using WMS.Alertas.Services;
 
 namespace WMS.Alertas.Jobs;
 
+/// <summary>
+/// Procesa la cola transaccional de alertas de Packing List. Cada ejecución
+/// reserva filas pendientes, envía un correo por PL/vendedor y actualiza cada
+/// alerta individualmente para conservar trazabilidad y permitir reintentos.
+/// </summary>
 public class PackingListModificadoJob
 {
+    // Parámetros operacionales de lectura, reintento y recuperación de reservas.
     private const string TipoAlertaLog = "PACKING_LIST_MODIFICADO";
     private const int CantidadMaxima = 50;
     private const int MaximoIntentos = 5;
@@ -32,16 +38,21 @@ public class PackingListModificadoJob
     public async Task Ejecutar()
     {
         var logId = 0;
+
+        // Identifica de forma única esta ejecución. Los SP solo permiten que
+        // quien reservó una alerta pueda marcarla ENVIADA o registrar su error.
         var procesadoPor = Guid.NewGuid();
 
         try
         {
-            //busca si quedó por error algun item en estado procesando y la vuelve a pendiente
+            // Recupera alertas abandonadas si una ejecución anterior se detuvo
+            // después de reservarlas y antes de finalizar su procesamiento.
             var cantidadLiberada =
                 await _alertaService.LiberarProcesamientosExpirados(
                     MinutosExpiracion);
 
-            //toma las alertas pendientes 
+            // La reserva se realiza en BD con bloqueo y READPAST para impedir
+            // que el endpoint y la recurrencia tomen simultáneamente la misma fila.
             var alertas = await _alertaService.TomarPendientes(
                 procesadoPor,
                 CantidadMaxima);
@@ -58,6 +69,8 @@ public class PackingListModificadoJob
             var destinatarios = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
+            // Varias modificaciones pendientes del mismo PL se consolidan en
+            // un solo correo para el vendedor responsable de la Nota de Venta.
             var grupos = alertas.GroupBy(x => new
             {
                 x.PackingListId,
@@ -88,11 +101,13 @@ public class PackingListModificadoJob
 
                     await _correoService.EnviarCorreo(
                         new List<string> { correo },
-                        $"Aviso WMS - Packing List {grupo.Key.PackingListId} modificado",
+                        ObtenerAsunto(grupo.Key.PackingListId, items),
                         html);
 
                     destinatarios.Add(correo);
 
+                    // El resultado se actualiza por alerta, no por Packing List:
+                    // el mismo PL puede generar nuevos eventos en el futuro.
                     foreach (var alerta in items)
                     {
                         try
@@ -112,6 +127,8 @@ public class PackingListModificadoJob
                 }
                 catch (Exception ex)
                 {
+                    // Un fallo de este grupo no impide procesar otros PL. Cada
+                    // fila conserva su propio contador y próximo intento.
                     foreach (var alerta in items)
                     {
                         await RegistrarError(
@@ -201,12 +218,23 @@ public class PackingListModificadoJob
                 .Distinct(StringComparer.OrdinalIgnoreCase));
         var observaciones = ObtenerObservaciones(items);
 
+        // Una devolución no posee producto, lote ni cantidades. Se presenta
+        // como evento operativo y usa la observación como motivo de devolución.
+        var soloDevolucion = items.All(EsDevolucionSac);
+        var contieneDevolucion = items.Any(EsDevolucionSac);
+        var titulo = ObtenerTitulo(packingListId, items);
+        var introduccion = soloDevolucion
+            ? "El Packing List fue devuelto a SAC."
+            : contieneDevolucion
+                ? "Se registraron eventos en este Packing List."
+                : "Se registró una modificación en un Packing List asociado a una Nota de Venta.";
+
         html.AppendLine(
             "<div style='font-family:Arial,Helvetica,sans-serif;color:#202124;max-width:900px;margin:0 auto;line-height:1.45;'>");
         html.AppendLine(
-            $"<h1 style='font-size:28px;font-weight:600;margin:0 0 16px 0;'>Packing List {packingListId} modificado</h1>");
+            $"<h1 style='font-size:28px;font-weight:600;margin:0 0 16px 0;'>{Codificar(titulo)}</h1>");
         html.AppendLine(
-            "<p style='font-size:17px;margin:0 0 30px 0;'>Se registró una modificación en un Packing List asociado a una Nota de Venta.</p>");
+            $"<p style='font-size:17px;margin:0 0 30px 0;'>{Codificar(introduccion)}</p>");
 
         html.AppendLine(
             "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;border-top:1px solid #dadce0;margin-bottom:34px;font-size:16px;'>");
@@ -219,41 +247,56 @@ public class PackingListModificadoJob
         AgregarFilaResumen(html, "Usuario", usuarios);
         html.AppendLine("</table>");
 
-        html.AppendLine(
-            "<h2 style='font-size:22px;font-weight:600;margin:0 0 14px 0;'>Detalle de la modificación</h2>");
-        html.AppendLine(
-            "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;font-size:16px;margin-bottom:30px;'>");
-        html.AppendLine("<tr>");
-        html.AppendLine(
-            "<th align='left' width='23%' style='padding:0 14px 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Modificación</th>");
-        html.AppendLine(
-            "<th align='left' width='44%' style='padding:0 14px 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Producto</th>");
-        html.AppendLine(
-            "<th align='left' width='33%' style='padding:0 0 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Cambio</th>");
-        html.AppendLine("</tr>");
-
-        foreach (var item in items)
+        if (!soloDevolucion)
         {
-            var producto = ObtenerProducto(
-                item.ProductoCodigo,
-                item.ProductoNombre);
+            // En grupos mixtos se conserva la tabla para mostrar conjuntamente
+            // modificaciones de productos y la devolución del mismo PL.
+            var tituloDetalle = contieneDevolucion
+                ? "Detalle de los eventos"
+                : "Detalle de la modificación";
 
+            html.AppendLine(
+                $"<h2 style='font-size:22px;font-weight:600;margin:0 0 14px 0;'>{Codificar(tituloDetalle)}</h2>");
+            html.AppendLine(
+                "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;font-size:16px;margin-bottom:30px;'>");
             html.AppendLine("<tr>");
             html.AppendLine(
-                $"<td valign='top' style='padding:16px 14px 16px 0;border-bottom:1px solid #eeeeee;'>{Codificar(FormatearTipoModificacion(item.TipoModificacion))}</td>");
+                "<th align='left' width='23%' style='padding:0 14px 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Evento</th>");
             html.AppendLine(
-                $"<td valign='top' style='padding:16px 14px 16px 0;border-bottom:1px solid #eeeeee;'>{Codificar(producto)}</td>");
+                "<th align='left' width='44%' style='padding:0 14px 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Producto</th>");
             html.AppendLine(
-                $"<td valign='top' style='padding:16px 0;border-bottom:1px solid #eeeeee;'>{ArmarCambio(item)}</td>");
+                "<th align='left' width='33%' style='padding:0 0 10px 0;border-bottom:1px solid #dadce0;font-weight:600;'>Cambio</th>");
             html.AppendLine("</tr>");
-        }
 
-        html.AppendLine("</table>");
+            foreach (var item in items)
+            {
+                var producto = EsDevolucionSac(item)
+                    ? "—"
+                    : ObtenerProducto(
+                        item.ProductoCodigo,
+                        item.ProductoNombre);
+
+                html.AppendLine("<tr>");
+                html.AppendLine(
+                    $"<td valign='top' style='padding:16px 14px 16px 0;border-bottom:1px solid #eeeeee;'>{Codificar(FormatearTipoModificacion(item.TipoModificacion))}</td>");
+                html.AppendLine(
+                    $"<td valign='top' style='padding:16px 14px 16px 0;border-bottom:1px solid #eeeeee;'>{Codificar(producto)}</td>");
+                html.AppendLine(
+                    $"<td valign='top' style='padding:16px 0;border-bottom:1px solid #eeeeee;'>{ArmarCambio(item)}</td>");
+                html.AppendLine("</tr>");
+            }
+
+            html.AppendLine("</table>");
+        }
 
         if (observaciones.Count > 0)
         {
+            var tituloObservaciones = soloDevolucion
+                ? "Motivo de la devolución"
+                : "Observaciones";
+
             html.AppendLine(
-                "<h2 style='font-size:20px;font-weight:600;margin:0 0 10px 0;'>Observaciones</h2>");
+                $"<h2 style='font-size:20px;font-weight:600;margin:0 0 10px 0;'>{Codificar(tituloObservaciones)}</h2>");
             html.AppendLine(
                 "<ul style='font-size:16px;margin:0;padding-left:26px;'>");
 
@@ -303,6 +346,11 @@ public class PackingListModificadoJob
 
             return
                 $"<strong>{FormatearCantidad(item.CantidadAnterior)} &#10132; {FormatearCantidad(item.CantidadNueva)}</strong>{cantidad}";
+        }
+
+        if (EsDevolucionSac(item))
+        {
+            return "Requiere gestión de SAC.";
         }
 
         return string.Empty;
@@ -376,8 +424,43 @@ public class PackingListModificadoJob
         {
             "CAMBIO_LOTE" => "Cambio de lote",
             "BAJA_CANTIDAD" => "Baja de cantidad",
+            "DEVUELTO_A_SAC" => "Devuelto a SAC",
             _ => tipoModificacion
         };
+    }
+
+    private static string ObtenerAsunto(
+        int packingListId,
+        IEnumerable<AlertaPackingListPendiente> items)
+    {
+        // El asunto usa la misma regla que el encabezado para distinguir una
+        // devolución pura de una modificación o de un grupo mixto de eventos.
+        return $"Aviso WMS - {ObtenerTitulo(packingListId, items)}";
+    }
+
+    private static string ObtenerTitulo(
+        int packingListId,
+        IEnumerable<AlertaPackingListPendiente> items)
+    {
+        var tipos = items
+            .Select(x => x.TipoModificacion)
+            .ToList();
+
+        if (tipos.All(x => x == "DEVUELTO_A_SAC"))
+            return $"Packing List {packingListId} devuelto a SAC";
+
+        if (tipos.Any(x => x == "DEVUELTO_A_SAC"))
+            return $"Packing List {packingListId} con cambios";
+
+        return $"Packing List {packingListId} modificado";
+    }
+
+    private static bool EsDevolucionSac(
+        AlertaPackingListPendiente item)
+    {
+        // Tipo persistido por spPackingListDevolverSac mediante el registrar
+        // común de AlertaPackingList.
+        return item.TipoModificacion == "DEVUELTO_A_SAC";
     }
 
     private static string ObtenerProducto(

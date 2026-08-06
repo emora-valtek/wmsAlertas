@@ -5,6 +5,11 @@ using WMS.Alertas.Models;
 
 namespace WMS.Alertas.Services;
 
+/// <summary>
+/// Acceso Dapper a la cola persistente de alertas de Packing List. Todas las
+/// actualizaciones exigen el GUID de reserva para evitar resultados cruzados
+/// entre ejecuciones concurrentes.
+/// </summary>
 public class AlertaPackingListService
 {
     private readonly IConfiguration _configuration;
@@ -14,6 +19,9 @@ public class AlertaPackingListService
         _configuration = configuration;
     }
 
+    /// <summary>
+    /// Toma y reserva atómicamente un lote de alertas listas para procesar.
+    /// </summary>
     public async Task<List<AlertaPackingListPendiente>> TomarPendientes(
         Guid procesadoPor,
         int cantidadMaxima = 50)
@@ -32,6 +40,9 @@ public class AlertaPackingListService
         return alertas.ToList();
     }
 
+    /// <summary>
+    /// Marca una alerta como enviada si pertenece a la ejecución indicada.
+    /// </summary>
     public async Task MarcarEnviada(
         long alertaPackingListId,
         Guid procesadoPor)
@@ -48,6 +59,9 @@ public class AlertaPackingListService
             commandType: CommandType.StoredProcedure);
     }
 
+    /// <summary>
+    /// Registra el fallo individual y calcula en BD el próximo intento.
+    /// </summary>
     public async Task MarcarError(
         long alertaPackingListId,
         Guid procesadoPor,
@@ -70,6 +84,9 @@ public class AlertaPackingListService
             commandType: CommandType.StoredProcedure);
     }
 
+    /// <summary>
+    /// Devuelve a la cola reservas abandonadas por procesos interrumpidos.
+    /// </summary>
     public async Task<int> LiberarProcesamientosExpirados(
         int minutosExpiracion = 60)
     {

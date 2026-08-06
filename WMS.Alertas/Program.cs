@@ -47,6 +47,56 @@ app.UseHttpsRedirection();
 
 app.UseHangfireDashboard("/hangfire");
 
+// Disparador productivo: no recibe el PL ni envía el correo durante la petición.
+// Solo encola el job; este consulta y reserva todas las alertas PENDIENTE en BD.
+app.MapPost(
+        "/api/alertas/packing-list/procesar-pendientes",
+        (IBackgroundJobClient backgroundJobs) =>
+        {
+            var jobId = backgroundJobs.Enqueue<PackingListModificadoJob>(
+                job => job.Ejecutar());
+
+            return Results.Accepted(
+                value: new
+                {
+                    JobId = jobId,
+                    Mensaje = "Procesamiento de alertas de Packing List encolado."
+                });
+        })
+    .WithName("ProcesarAlertasPackingListPendientes")
+    .WithSummary("Encola el procesamiento de alertas pendientes de Packing List")
+    .Produces(StatusCodes.Status202Accepted);
+
+// Endpoint seguro para validar conectividad desde QA. No consulta la cola,
+// no encola jobs y no envía correos; únicamente deja evidencia en el log.
+app.MapPost(
+        "/api/alertas/packing-list/prueba-conexion",
+        async (
+            HttpContext context,
+            IAlertaEjecucionLogService logService) =>
+        {
+            var logId = await logService.Iniciar(
+                "PRUEBA_ENDPOINT_PACKING_LIST");
+            var direccionOrigen =
+                context.Connection.RemoteIpAddress?.ToString() ?? "desconocida";
+
+            await logService.FinalizarOk(
+                logId,
+                0,
+                $"Llamada de prueba recibida. Origen: {direccionOrigen}");
+
+            return Results.Ok(new
+            {
+                LogId = logId,
+                Mensaje = "Llamada de prueba registrada correctamente."
+            });
+        })
+    .WithName("ProbarConexionAlertasPackingList")
+    .WithSummary("Registra una llamada de prueba sin procesar alertas")
+    .Produces(StatusCodes.Status200OK);
+
+// Se eliminan primero las definiciones persistidas para que Hangfire no conserve
+// programaciones antiguas cuando cambian los horarios o se deshabilita un job.
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_ProduccionPropia");
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Mercaderia");
 RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Todos");
@@ -104,7 +154,8 @@ RecurringJob.AddOrUpdate<LoteReservadoMinimoJob>(
         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
     });
 
-// Modificaciones de Packing List cada dos minutos, de lunes a viernes
+// Respaldo temporal mientras se valida el disparo mediante endpoint.
+// Modificaciones de Packing List cada dos minutos, de lunes a viernes,
 // entre las 08:00 y las 17:58.
 RecurringJob.AddOrUpdate<PackingListModificadoJob>(
     "Alerta_PackingList_Modificado",
