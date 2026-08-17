@@ -154,16 +154,18 @@ RecurringJob.AddOrUpdate<LoteReservadoMinimoJob>(
         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
     });
 
-// Respaldo temporal mientras se valida el disparo mediante endpoint.
-// Modificaciones de Packing List cada dos minutos, de lunes a viernes,
-// entre las 08:00 y las 17:58.
-RecurringJob.AddOrUpdate<PackingListModificadoJob>(
-    "Alerta_PackingList_Modificado",
-    x => x.Ejecutar(),
-    "*/2 8-17 * * 1-5",
-    new RecurringJobOptions
-    {
-        TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
-    });
+// DESHABILITADO: las alertas de modificación de Packing List ahora se
+// procesan cuando WMS llama al endpoint /api/alertas/packing-list/procesar-pendientes.
+// Se conserva esta definición comentada solamente como referencia por si fuera
+// necesario restablecer temporalmente la revisión automática cada dos minutos.
+//
+// RecurringJob.AddOrUpdate<PackingListModificadoJob>(
+//     "Alerta_PackingList_Modificado",
+//     x => x.Ejecutar(),
+//     "*/2 8-17 * * 1-5",
+//     new RecurringJobOptions
+//     {
+//         TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Pacific SA Standard Time")
+//     });
 
 app.Run();
