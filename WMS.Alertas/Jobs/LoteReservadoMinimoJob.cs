@@ -7,25 +7,26 @@ using WMS.Alertas.Services;
 
 namespace WMS.Alertas.Jobs;
 
+/// <summary>
+/// Envía a cada solicitante un correo con sus propias reservas que alcanzaron
+/// el saldo mínimo. Los grupos se procesan de manera independiente para que
+/// un destinatario con error no impida notificar a los demás.
+/// </summary>
 public class LoteReservadoMinimoJob
 {
     private const string TipoAlertaLog = "LOTE_RESERVADO_MINIMO";
-    private const string TipoCorreoDestino = "LoteReservadoMinimo";
 
     private readonly AlertaLoteReservadoMinimoService _alertaService;
     private readonly CorreoService _correoService;
-    private readonly CorreoDestinoService _correoDestinoService;
     private readonly IAlertaEjecucionLogService _logService;
 
     public LoteReservadoMinimoJob(
         AlertaLoteReservadoMinimoService alertaService,
         CorreoService correoService,
-        CorreoDestinoService correoDestinoService,
         IAlertaEjecucionLogService logService)
     {
         _alertaService = alertaService;
         _correoService = correoService;
-        _correoDestinoService = correoDestinoService;
         _logService = logService;
     }
 
@@ -43,29 +44,72 @@ public class LoteReservadoMinimoJob
 
             logId = await _logService.Iniciar(TipoAlertaLog);
 
-            var destinatarios =
-                await _correoDestinoService.ObtenerCorreos(
-                    TipoCorreoDestino);
+            var destinatarios = new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+            var errores = new List<string>();
+            var cantidadEnviada = 0;
 
-            if (destinatarios.Count == 0)
+            // Se agrupa por el usuario creador de la solicitud. De esta forma,
+            // cada persona recibe solo las reservas que ella misma registró.
+            var grupos = lotes
+                .GroupBy(x => x.SolicitanteId)
+                .OrderBy(x => x.Key);
+
+            foreach (var grupo in grupos)
             {
-                throw new InvalidOperationException(
-                    $"No existen destinatarios activos para la alerta {TipoCorreoDestino}.");
+                var reservasSolicitante = grupo
+                    .OrderBy(x => x.ClienteNombre)
+                    .ThenBy(x => x.ProductoCodigo)
+                    .ThenBy(x => x.LoteCodigo)
+                    .ToList();
+                var solicitante = reservasSolicitante[0];
+                var correo = solicitante.SolicitanteCorreo?.Trim();
+
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(correo))
+                    {
+                        throw new InvalidOperationException(
+                            $"El solicitante {solicitante.SolicitanteNombre} " +
+                            $"(ID {solicitante.SolicitanteId}) no tiene correo configurado.");
+                    }
+
+                    var html = ArmarHtml(reservasSolicitante);
+
+                    await _correoService.EnviarCorreo(
+                        new List<string> { correo },
+                        "Alerta WMS - Lotes reservados con saldo mínimo",
+                        html);
+
+                    // Solo se marcan las reservas del grupo cuyo correo terminó
+                    // correctamente. Las de otros grupos con error siguen pendientes.
+                    await _alertaService.MarcarEnviadas(
+                        reservasSolicitante.Select(
+                            x => x.SolicitudLoteReservadoId));
+
+                    destinatarios.Add(correo);
+                    cantidadEnviada += reservasSolicitante.Count;
+                }
+                catch (Exception ex)
+                {
+                    errores.Add(
+                        $"Solicitante {solicitante.SolicitanteId} " +
+                        $"({solicitante.SolicitanteNombre}): {ex.Message}");
+                }
             }
 
-            var html = ArmarHtml(lotes);
-
-            await _correoService.EnviarCorreo(
-                destinatarios,
-                "Alerta WMS - Lotes reservados con saldo mínimo",
-                html);
-
-            await _alertaService.MarcarEnviadas(
-                lotes.Select(x => x.SolicitudLoteReservadoId));
+            // Se lanza el error después de recorrer todos los grupos para que
+            // Hangfire reintente solamente las reservas que quedaron pendientes.
+            if (errores.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Reservas notificadas: {cantidadEnviada} de {lotes.Count}. " +
+                    string.Join(" | ", errores));
+            }
 
             await _logService.FinalizarOk(
                 logId,
-                lotes.Count,
+                cantidadEnviada,
                 string.Join(";", destinatarios));
         }
         catch (Exception ex)

@@ -5,6 +5,10 @@ using WMS.Alertas.Models;
 
 namespace WMS.Alertas.Services;
 
+/// <summary>
+/// Consulta las reservas que requieren aviso y las marca como notificadas
+/// solamente después de que el correo de su solicitante fue enviado.
+/// </summary>
 public class AlertaLoteReservadoMinimoService
 {
     private readonly IConfiguration _configuration;
@@ -33,6 +37,9 @@ public class AlertaLoteReservadoMinimoService
         if (ids.Count == 0)
             return;
 
+        // Cada grupo de un solicitante se confirma en una sola transacción.
+        // Si alguna actualización falla, ninguna reserva de ese correo queda
+        // marcada parcialmente como notificada.
         using var connection = CrearConexion();
         await connection.OpenAsync();
         using var transaction = connection.BeginTransaction();
