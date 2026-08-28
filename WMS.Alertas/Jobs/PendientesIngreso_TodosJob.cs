@@ -80,13 +80,6 @@ public class PendientesIngreso_TodosJob
                 pendientes,
                 detalle, true);
 
-            //await _correoService.EnviarCorreoPrueba(
-            //    destinatarios,
-            //    "Prueba Alerta WMS - Existencias Pendientes de ingreso",
-            //    html.ToString(),
-            //    excelBytes,
-            //    $"WMS_PendientesIngreso_{DateTime.Now:yyyyMMdd}.xlsx");
-
             await _correoService.EnviarCorreo(
                 destinatarios,
                 "Alerta WMS - Existencias Pendientes de ingreso",

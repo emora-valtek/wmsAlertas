@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using WMS.Alertas.Interfaces;
+using WMS.Alertas.Global;
 using WMS.Alertas.Models;
 using WMS.Alertas.Services;
 
@@ -15,7 +16,6 @@ namespace WMS.Alertas.Jobs;
 public class PackingListModificadoJob
 {
     // Parámetros operacionales de lectura, reintento y recuperación de reservas.
-    private const string TipoAlertaLog = "PACKING_LIST_MODIFICADO";
     private const int CantidadMaxima = 50;
     private const int MaximoIntentos = 5;
     private const int ReintentarEnMinutos = 5;
@@ -24,18 +24,35 @@ public class PackingListModificadoJob
     private readonly AlertaPackingListService _alertaService;
     private readonly CorreoService _correoService;
     private readonly IAlertaEjecucionLogService _logService;
+    private readonly NotificacionErrorService _notificacionErrorService;
 
     public PackingListModificadoJob(
         AlertaPackingListService alertaService,
         CorreoService correoService,
-        IAlertaEjecucionLogService logService)
+        IAlertaEjecucionLogService logService,
+        NotificacionErrorService notificacionErrorService)
     {
         _alertaService = alertaService;
         _correoService = correoService;
         _logService = logService;
+        _notificacionErrorService = notificacionErrorService;
     }
 
     public async Task Ejecutar()
+    {
+        await EjecutarInterno(0, "PACKING_LIST_MODIFICADO");
+    }
+
+    public async Task EjecutarRespaldo()
+    {
+        await EjecutarInterno(
+            ConfiguracionAlertas.MinutosAntiguedadRespaldoPackingList,
+            "PACKING_LIST_MODIFICADO_RESPALDO");
+    }
+
+    private async Task EjecutarInterno(
+        int minutosAntiguedad,
+        string tipoAlertaLog)
     {
         var logId = 0;
 
@@ -55,17 +72,19 @@ public class PackingListModificadoJob
             // que el endpoint y la recurrencia tomen simultáneamente la misma fila.
             var alertas = await _alertaService.TomarPendientes(
                 procesadoPor,
-                CantidadMaxima);
+                CantidadMaxima,
+                minutosAntiguedad);
 
             if (alertas.Count == 0)
             {
                 return;
             }
 
-            logId = await _logService.Iniciar(TipoAlertaLog);
+            logId = await _logService.Iniciar(tipoAlertaLog);
 
             var enviadas = 0;
             var errores = new List<string>();
+            var erroresDefinitivos = new List<string>();
             var destinatarios = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
@@ -120,8 +139,10 @@ public class PackingListModificadoJob
                         }
                         catch (Exception ex)
                         {
-                            errores.Add(
-                                $"Alerta {alerta.AlertaPackingListId}: el correo fue enviado, pero no se pudo marcar ENVIADA. {ex.Message}");
+                            var detallePersistencia =
+                                $"Alerta {alerta.AlertaPackingListId}: el correo fue enviado, pero no se pudo marcar ENVIADA. {ex.Message}";
+                            errores.Add(detallePersistencia);
+                            erroresDefinitivos.Add(detallePersistencia);
                         }
                     }
                 }
@@ -135,7 +156,8 @@ public class PackingListModificadoJob
                             alerta,
                             procesadoPor,
                             ex,
-                            errores);
+                            errores,
+                            erroresDefinitivos);
                     }
                 }
             }
@@ -149,6 +171,14 @@ public class PackingListModificadoJob
                         enviadas,
                         cantidadLiberada,
                         errores));
+
+                if (erroresDefinitivos.Count > 0)
+                {
+                    await _notificacionErrorService.Notificar(
+                        tipoAlertaLog,
+                        "Las siguientes alertas agotaron sus reintentos: " +
+                        string.Join(" | ", erroresDefinitivos));
+                }
 
                 return;
             }
@@ -165,7 +195,7 @@ public class PackingListModificadoJob
         {
             if (logId == 0)
             {
-                logId = await _logService.Iniciar(TipoAlertaLog);
+                logId = await _logService.Iniciar(tipoAlertaLog);
             }
 
             await _logService.FinalizarError(logId, ex.ToString());
@@ -177,14 +207,15 @@ public class PackingListModificadoJob
         AlertaPackingListPendiente alerta,
         Guid procesadoPor,
         Exception error,
-        List<string> errores)
+        List<string> errores,
+        List<string> erroresDefinitivos)
     {
         var mensaje =
             $"No se pudo enviar la alerta {alerta.AlertaPackingListId} del Packing List {alerta.PackingListId}. {error}";
 
         try
         {
-            await _alertaService.MarcarError(
+            var esErrorDefinitivo = await _alertaService.MarcarError(
                 alerta.AlertaPackingListId,
                 procesadoPor,
                 mensaje,
@@ -193,11 +224,19 @@ public class PackingListModificadoJob
 
             errores.Add(
                 $"Alerta {alerta.AlertaPackingListId}: {error.Message}");
+
+            if (esErrorDefinitivo)
+            {
+                erroresDefinitivos.Add(
+                    $"Alerta {alerta.AlertaPackingListId}, Packing List {alerta.PackingListId}: {error.Message}");
+            }
         }
         catch (Exception ex)
         {
-            errores.Add(
-                $"Alerta {alerta.AlertaPackingListId}: {error.Message} Además, no se pudo registrar el error: {ex.Message}");
+            var detallePersistencia =
+                $"Alerta {alerta.AlertaPackingListId}: {error.Message} Además, no se pudo registrar el error: {ex.Message}";
+            errores.Add(detallePersistencia);
+            erroresDefinitivos.Add(detallePersistencia);
         }
     }
 

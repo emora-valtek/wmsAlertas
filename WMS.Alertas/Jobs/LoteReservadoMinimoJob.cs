@@ -37,12 +37,17 @@ public class LoteReservadoMinimoJob
 
         try
         {
+            logId = await _logService.Iniciar(TipoAlertaLog);
             var lotes = await _alertaService.ObtenerPendientes();
 
             if (lotes.Count == 0)
+            {
+                await _logService.FinalizarOk(
+                    logId,
+                    0,
+                    "Sin registros para enviar");
                 return;
-
-            logId = await _logService.Iniciar(TipoAlertaLog);
+            }
 
             var destinatarios = new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);

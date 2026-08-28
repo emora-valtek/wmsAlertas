@@ -24,7 +24,8 @@ public class AlertaPackingListService
     /// </summary>
     public async Task<List<AlertaPackingListPendiente>> TomarPendientes(
         Guid procesadoPor,
-        int cantidadMaxima = 50)
+        int cantidadMaxima = 50,
+        int minutosAntiguedad = 0)
     {
         using var connection = CrearConexion();
 
@@ -33,7 +34,8 @@ public class AlertaPackingListService
             new
             {
                 ProcesadoPor = procesadoPor,
-                CantidadMaxima = cantidadMaxima
+                CantidadMaxima = cantidadMaxima,
+                MinutosAntiguedad = minutosAntiguedad
             },
             commandType: CommandType.StoredProcedure);
 
@@ -62,7 +64,7 @@ public class AlertaPackingListService
     /// <summary>
     /// Registra el fallo individual y calcula en BD el próximo intento.
     /// </summary>
-    public async Task MarcarError(
+    public async Task<bool> MarcarError(
         long alertaPackingListId,
         Guid procesadoPor,
         string mensajeError,
@@ -71,7 +73,7 @@ public class AlertaPackingListService
     {
         using var connection = CrearConexion();
 
-        await connection.ExecuteAsync(
+        var estado = await connection.QuerySingleAsync<string>(
             "dbo.spAlertaPackingListMarcarError",
             new
             {
@@ -82,6 +84,8 @@ public class AlertaPackingListService
                 ReintentarEnMinutos = reintentarEnMinutos
             },
             commandType: CommandType.StoredProcedure);
+
+        return estado == "ERROR";
     }
 
     /// <summary>

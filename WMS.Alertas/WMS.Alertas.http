@@ -1,6 +1,15 @@
-@WMS.Alertas_HostAddress = http://localhost:5249
+@WMS.Alertas_HostAddress = https://localhost:7127
+@WMS.Alertas_ApiKey = REEMPLAZAR_CON_API_KEY_LOCAL
 
-GET {{WMS.Alertas_HostAddress}}/weatherforecast/
-Accept: application/json
+GET {{WMS.Alertas_HostAddress}}/health
+X-API-Key: {{WMS.Alertas_ApiKey}}
 
 ###
+
+POST {{WMS.Alertas_HostAddress}}/api/alertas/packing-list/prueba-conexion
+X-API-Key: {{WMS.Alertas_ApiKey}}
+
+###
+
+POST {{WMS.Alertas_HostAddress}}/api/alertas/packing-list/procesar-pendientes
+X-API-Key: {{WMS.Alertas_ApiKey}}
