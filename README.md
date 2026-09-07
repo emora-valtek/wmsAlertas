@@ -19,6 +19,10 @@ Todos los horarios usan la zona `Pacific SA Standard Time` (Chile).
 | Packing List pendientes | Lunes a viernes, 08:00 | Informa Packing List con más de dos días sin avanzar en recolección o embalaje. |
 | Respaldo Packing List PM | Lunes a viernes, 15:00 | Segundo barrido de alertas pendientes. |
 
+El control de vencimientos procesa las existencias de lunes a viernes a las 02:00 y
+envía su informe consolidado a las 07:45. El procesamiento y el correo son jobs
+independientes para evitar carga masiva durante la jornada.
+
 La migración del control de vencimientos desde `portal.Job` se implementa mediante
 el proceso manual `ControlVencimientos_EnviarRevision` y el control consolidado
 `Alerta_LoteReservados`. Antes de probarlos se debe ejecutar

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Hangfire;
+using WMS.Alertas.Global;
 using WMS.Alertas.Interfaces;
 using WMS.Alertas.Models;
 using WMS.Alertas.Services;
@@ -12,15 +13,21 @@ public sealed class PackingListPendienteJob
     private readonly AlertaPackingListPendienteService _alertaService;
     private readonly CorreoService _correoService;
     private readonly IAlertaEjecucionLogService _logService;
+    private readonly CorreoDestinoService _correoDestinoService;
+    private readonly ConfiguracionEjecucionAlertas _configuracionEjecucion;
 
     public PackingListPendienteJob(
         AlertaPackingListPendienteService alertaService,
         CorreoService correoService,
-        IAlertaEjecucionLogService logService)
+        IAlertaEjecucionLogService logService,
+        CorreoDestinoService correoDestinoService,
+        ConfiguracionEjecucionAlertas configuracionEjecucion)
     {
         _alertaService = alertaService;
         _correoService = correoService;
         _logService = logService;
+        _correoDestinoService = correoDestinoService;
+        _configuracionEjecucion = configuracionEjecucion;
     }
 
     [DisableConcurrentExecution(timeoutInSeconds: 600)]
@@ -37,15 +44,35 @@ public sealed class PackingListPendienteJob
             var recoleccion = registros.Where(x => x.Etapa == "RECOLECCION").ToList();
             var embalaje = registros.Where(x => x.Etapa == "EMBALAJE").ToList();
 
+            if (_configuracionEjecucion.EsProduccion && registros.Count == 0)
+            {
+                await _logService.FinalizarOk(logId, 0, "Sin registros para enviar");
+                return;
+            }
+
+            var destinatarios = await _correoDestinoService.ObtenerCorreos(
+                "PackingListPendientes");
+
+            if (destinatarios.Count == 0 &&
+                !_configuracionEjecucion.EsProduccion &&
+                !string.IsNullOrWhiteSpace(_configuracionEjecucion.CorreoPruebas))
+            {
+                destinatarios.Add(_configuracionEjecucion.CorreoPruebas);
+            }
+
+            if (destinatarios.Count == 0)
+                throw new InvalidOperationException(
+                    "No hay destinatarios configurados para PackingListPendientes.");
+
             await _correoService.EnviarCorreo(
-                ["emora@valtek.cl"],
+                destinatarios,
                 "WMS: Alerta Packing List pendientes",
                 ArmarHtml(recoleccion, embalaje));
 
             await _logService.FinalizarOk(
                 logId,
                 registros.Count,
-                "emora@valtek.cl");
+                string.Join(";", destinatarios));
         }
         catch (Exception ex)
         {

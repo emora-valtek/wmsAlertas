@@ -2,6 +2,7 @@ namespace WMS.Alertas.Models;
 
 public sealed class ExistenciaVencidaDiagnostico
 {
+    public int InformeId { get; set; }
     public int ExistenciaId { get; set; }
     public int Estado { get; set; }
     public int ProductoId { get; set; }
@@ -28,6 +29,7 @@ public sealed class SolicitudVigenciaVencidaDiagnostico
     public int CantidadProductos { get; set; }
     public int ClienteId { get; set; }
     public string ClienteNombre { get; set; } = string.Empty;
+    public string SolicitanteCorreo { get; set; } = string.Empty;
 }
 
 public sealed class SolicitudLotePorVencerDiagnostico
@@ -46,6 +48,7 @@ public sealed class SolicitudLotePorVencerDiagnostico
     public string Situacion { get; set; } = string.Empty;
     public int ClienteId { get; set; }
     public string ClienteNombre { get; set; } = string.Empty;
+    public string SolicitanteCorreo { get; set; } = string.Empty;
 }
 
 public sealed class ControlVencimientosDiagnostico

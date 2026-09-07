@@ -18,19 +18,17 @@ public sealed class ControlVencimientosService
         _configuration = configuration;
     }
 
-    public async Task<ControlVencimientosDiagnostico> ObtenerDiagnostico()
+    public async Task<ControlVencimientosDiagnostico> ObtenerLotesReservados()
     {
         await using var connection = new SqlConnection(
             _configuration.GetConnectionString("DefaultConnection"));
 
         using var resultados = await connection.QueryMultipleAsync(
-            "dbo.spVencimientosObtener",
+            "dbo.spLoteReservadosVencimientoObtener",
             commandType: CommandType.StoredProcedure);
 
         return new ControlVencimientosDiagnostico
         {
-            ExistenciasVencidas =
-                (await resultados.ReadAsync<ExistenciaVencidaDiagnostico>()).ToList(),
             SolicitudesVigenciaVencida =
                 (await resultados.ReadAsync<SolicitudVigenciaVencidaDiagnostico>()).ToList(),
             SolicitudesLote =
@@ -38,16 +36,60 @@ public sealed class ControlVencimientosService
         };
     }
 
-    public async Task<ResultadoLoteVencimientos> EnviarLoteARevision(int cantidadMaxima)
+    public async Task<ResultadoLoteVencimientos> EnviarLoteARevision(
+        int cantidadMaxima,
+        int ejecucionLogId)
     {
         await using var connection = new SqlConnection(
             _configuration.GetConnectionString("DefaultConnection"));
 
         return await connection.QuerySingleAsync<ResultadoLoteVencimientos>(
             "dbo.spVencimientosRevisionar",
-            new { CantidadMaxima = cantidadMaxima },
+            new
+            {
+                CantidadMaxima = cantidadMaxima,
+                EjecucionLogId = ejecucionLogId
+            },
             commandType: CommandType.StoredProcedure,
             commandTimeout: 300);
+    }
+
+    public async Task<List<ExistenciaVencidaDiagnostico>> ObtenerInformeRevisionPendiente()
+    {
+        await using var connection = new SqlConnection(
+            _configuration.GetConnectionString("DefaultConnection"));
+
+        var registros = await connection.QueryAsync<ExistenciaVencidaDiagnostico>(
+            "dbo.spVencimientosInformeObtener",
+            commandType: CommandType.StoredProcedure);
+        return registros.ToList();
+    }
+
+    public async Task MarcarInformeRevisionEnviado(IEnumerable<int> informeIds)
+    {
+        await using var connection = new SqlConnection(
+            _configuration.GetConnectionString("DefaultConnection"));
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        try
+        {
+            foreach (var informeId in informeIds.Distinct())
+            {
+                await connection.ExecuteAsync(
+                    "dbo.spVencimientosInformeMarcar",
+                    new { InformeId = informeId },
+                    transaction,
+                    commandType: CommandType.StoredProcedure);
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task CaducarSolicitud(int solicitudId, string motivo)

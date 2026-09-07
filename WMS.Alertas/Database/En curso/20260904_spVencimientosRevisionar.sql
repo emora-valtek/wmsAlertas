@@ -3,7 +3,8 @@
 */
 
 CREATE OR ALTER PROCEDURE dbo.spVencimientosRevisionar
-    @CantidadMaxima INT = 500
+    @CantidadMaxima INT = 500,
+    @EjecucionLogId INT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -20,12 +21,15 @@ BEGIN
     BEGIN TRY
     BEGIN TRANSACTION;
     SELECT TOP (@CantidadMaxima) X.XTN_Id ExistenciaId, X.PRO_Id ProductoId,
-        X.LOT_Id LoteId, X.XTN_Estado EstadoAnterior
+        X.LOT_Id LoteId, X.XTN_Estado EstadoAnterior,
+        P.PRO_Codigo ProductoCodigo, L.LOT_Codigo LoteCodigo,
+        L.LOT_FechaVencimiento FechaVencimiento,
+        DATEADD(DAY,-P.PRO_MinimoVencimiento,L.LOT_FechaVencimiento) FechaEnvioRevision
     INTO #Cambios
     FROM dbo.XTN_Existencia X WITH (UPDLOCK, READPAST, ROWLOCK)
     JOIN dbo.PRO_Producto P ON P.PRO_Id=X.PRO_Id AND P.PRO_Activo=1
     JOIN dbo.LOT_Lote L ON L.LOT_Id=X.LOT_Id AND L.LOT_Activo=1
-    WHERE X.XTN_Activo=1 AND X.XTN_Estado IN (0,1,2,14,20,22)
+    WHERE X.XTN_Activo=1 AND X.XTN_Estado IN (0,1,2,14)
       AND P.PRO_MinimoVencimiento IS NOT NULL AND P.PRO_MaximoVencimiento IS NOT NULL
       AND DATEADD(DAY,-P.PRO_MinimoVencimiento,L.LOT_FechaVencimiento)<GETDATE()
     ORDER BY X.XTN_Id;
@@ -63,13 +67,22 @@ BEGIN
           SUM(CASE WHEN EstadoAnterior=1 THEN 1 ELSE 0 END) P,
           SUM(CASE WHEN EstadoAnterior=2 THEN 1 ELSE 0 END) D FROM #Cambios GROUP BY ProductoId,LoteId
         ) A ON A.ProductoId=PLC.PRO_Id AND A.LoteId=PLC.LOT_Id WHERE PLC.PROLOTCANT_Activo=1;
+
+        INSERT dbo.ControlVencimientoRevisionInforme
+        (
+            EjecucionLogId, ExistenciaId, EstadoAnterior, ProductoCodigo,
+            LoteCodigo, FechaVencimiento, FechaEnvioRevision
+        )
+        SELECT @EjecucionLogId, ExistenciaId, EstadoAnterior, ProductoCodigo,
+            LoteCodigo, FechaVencimiento, FechaEnvioRevision
+        FROM #Cambios;
     END
     COMMIT;
 
     DECLARE @Pendientes INT=(SELECT COUNT(*) FROM dbo.XTN_Existencia X
       JOIN dbo.PRO_Producto P ON P.PRO_Id=X.PRO_Id AND P.PRO_Activo=1
       JOIN dbo.LOT_Lote L ON L.LOT_Id=X.LOT_Id AND L.LOT_Activo=1
-      WHERE X.XTN_Activo=1 AND X.XTN_Estado IN (0,1,2,14,20,22)
+      WHERE X.XTN_Activo=1 AND X.XTN_Estado IN (0,1,2,14)
       AND P.PRO_MinimoVencimiento IS NOT NULL AND P.PRO_MaximoVencimiento IS NOT NULL
       AND DATEADD(DAY,-P.PRO_MinimoVencimiento,L.LOT_FechaVencimiento)<GETDATE());
     SELECT @Procesadas Procesadas,@Pendientes Pendientes;

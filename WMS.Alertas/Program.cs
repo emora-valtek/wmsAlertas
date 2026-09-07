@@ -260,6 +260,7 @@ RecurringJob.RemoveIfExists("Alerta_LoteReservado");
 RecurringJob.RemoveIfExists("Alerta_LoteReservados");
 RecurringJob.RemoveIfExists("Diagnostico_ControlVencimientos");
 RecurringJob.RemoveIfExists("ControlVencimientos_EnviarRevision");
+RecurringJob.RemoveIfExists("ControlVencimientos_InformeRevision");
 RecurringJob.RemoveIfExists("ControlVencimientos_LotesReservados");
 RecurringJob.RemoveIfExists("Alerta_PackingList_Pendiente");
 RecurringJob.RemoveIfExists("Alerta_PackingList_Pendientes");
@@ -328,12 +329,20 @@ if (configuracionEjecucion.Habilitadas)
         Horario("0 8 * * 1-5"),
         Opciones());
 
-    // Procesamiento real inicialmente manual para una prueba controlada.
+    // Procesa existencias de madrugada, de lunes a viernes; el informe se envía por separado.
     RecurringJob.AddOrUpdate<ControlVencimientosJob>(
         "ControlVencimientos_EnviarRevision",
         cola,
         x => x.EjecutarEnvioRevision(),
-        Cron.Never(),
+        Horario("0 2 * * 1-5"),
+        Opciones());
+
+    // Informe de las existencias procesadas durante la noche, de lunes a viernes a las 07:45.
+    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
+        "ControlVencimientos_InformeRevision",
+        cola,
+        x => x.EnviarInformeRevision(),
+        Horario("45 7 * * 1-5"),
         Opciones());
 
     // Respaldo del disparo inmediato efectuado por WMS. Solo toma alertas que
