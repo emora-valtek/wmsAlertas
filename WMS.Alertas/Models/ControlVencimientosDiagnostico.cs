@@ -18,7 +18,9 @@ public sealed class SolicitudVigenciaVencidaDiagnostico
     public int SolicitudLoteReservadoId { get; set; }
     public int Estado { get; set; }
     public int ProductoId { get; set; }
+    public string ProductoCodigo { get; set; } = string.Empty;
     public int LoteId { get; set; }
+    public string LoteCodigo { get; set; } = string.Empty;
     public DateTime FechaCreacion { get; set; }
     public int DiasVigencia { get; set; }
     public DateTime FechaCaducidad { get; set; }

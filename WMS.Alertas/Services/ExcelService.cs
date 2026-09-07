@@ -10,22 +10,18 @@ public class ExcelService
     {
         using var workbook = new XLWorkbook();
         var hoja = workbook.Worksheets.Add("Existencias");
-        var encabezados = new[] { "Existencia", "Estado anterior", "Producto ID", "Producto", "Lote ID", "Lote", "Vencimiento", "Mínimo vencimiento", "Fecha envío a revisión" };
+        var encabezados = new[] { "Estado anterior", "Producto", "Lote", "Fecha de vencimiento", "Fecha de envío a revisión" };
         for (var columna = 0; columna < encabezados.Length; columna++)
             hoja.Cell(1, columna + 1).Value = encabezados[columna];
 
         var fila = 2;
         foreach (var item in existencias)
         {
-            hoja.Cell(fila, 1).Value = item.ExistenciaId;
-            hoja.Cell(fila, 2).Value = item.Estado;
-            hoja.Cell(fila, 3).Value = item.ProductoId;
-            hoja.Cell(fila, 4).Value = item.ProductoCodigo;
-            hoja.Cell(fila, 5).Value = item.LoteId;
-            hoja.Cell(fila, 6).Value = item.LoteCodigo;
-            hoja.Cell(fila, 7).Value = item.FechaVencimiento;
-            hoja.Cell(fila, 8).Value = item.MinimoVencimiento;
-            hoja.Cell(fila, 9).Value = item.FechaEnvioRevision;
+            hoja.Cell(fila, 1).Value = DescribirEstadoExistencia(item.Estado);
+            hoja.Cell(fila, 2).Value = item.ProductoCodigo;
+            hoja.Cell(fila, 3).Value = item.LoteCodigo;
+            hoja.Cell(fila, 4).Value = item.FechaVencimiento;
+            hoja.Cell(fila, 5).Value = item.FechaEnvioRevision;
             fila++;
         }
 
@@ -36,6 +32,17 @@ public class ExcelService
         workbook.SaveAs(stream);
         return stream.ToArray();
     }
+
+    private static string DescribirEstadoExistencia(int estado) => estado switch
+    {
+        0 => "Recepcionado",
+        1 => "Pendiente de Ingreso",
+        2 => "Disponible",
+        14 => "Consumiendo",
+        20 => "Pre Inventario",
+        22 => "Pre Inventario 2026",
+        _ => "Desconocido"
+    };
 
     public byte[] GenerarExcelPendienteIngreso(
         List<PendienteIngresoDto> resumen,

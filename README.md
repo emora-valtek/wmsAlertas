@@ -16,25 +16,27 @@ Todos los horarios usan la zona `Pacific SA Standard Time` (Chile).
 | Stock asignado sin Packing List | Lunes a viernes, 09:00 | Informa stock asignado que todavía no tiene Packing List. |
 | Lotes reservados con saldo mínimo | Lunes a viernes, 09:05 | Notifica al solicitante cuando una reserva alcanza el mínimo. |
 | Respaldo Packing List AM | Lunes a viernes, 09:15 | Recupera alertas pendientes con más de 15 minutos. |
+| Packing List pendientes | Lunes a viernes, 08:00 | Informa Packing List con más de dos días sin avanzar en recolección o embalaje. |
 | Respaldo Packing List PM | Lunes a viernes, 15:00 | Segundo barrido de alertas pendientes. |
 
-La migración del control de vencimientos desde `portal.Job` comenzó con el job
-manual `Diagnostico_ControlVencimientos`. Este job solo consulta y registra las
-cantidades que serían procesadas: no modifica inventario, no caduca solicitudes
-y no envía correos. Antes de probarlo se debe ejecutar
-`Database/En curso/20260904_ControlVencimientosDiagnostico.sql` en `PortalDB`. El script
-instala `spVencimientosObtener` y `spVencimientosRevisionar`. El procesamiento
-real queda disponible como `ControlVencimientos_EnviarRevision`, inicialmente
-sin horario automático.
+La migración del control de vencimientos desde `portal.Job` se implementa mediante
+el proceso manual `ControlVencimientos_EnviarRevision` y el control consolidado
+`Alerta_LoteReservados`. Antes de probarlos se debe ejecutar
+los archivos `Database/En curso/20260904_ControlVencimientosDiagnostico.sql` y
+`Database/En curso/20260904_spVencimientosRevisionar.sql` en `PortalDB`. Cada
+archivo instala un procedimiento. El procesamiento
+queda inicialmente sin horario automático.
 
 ## Ambientes y ejecución en QA
 
 El ambiente se identifica mediante `ASPNETCORE_ENVIRONMENT`:
 
+- `Development`: ejecución local en modo `Manual`, usando User Secrets para la
+  conexión y las credenciales;
 - `Production`: modo `Automatico`, con los horarios operacionales;
 - `QA`: modo `Manual`, sin ejecuciones programadas.
 
-En QA los jobs se registran con `Cron.Never()` y aparecen en `/hangfire`, pero no
+En Development y QA los jobs se registran con `Cron.Never()` y aparecen en `/hangfire`, pero no
 se ejecutan por horario. El encargado elige un job y utiliza `Trigger now` para
 probarlo. La ejecución utiliza la cola exclusiva `qa-manual`, por lo que no toma
 trabajos antiguos de la cola automática.

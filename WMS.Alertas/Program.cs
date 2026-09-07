@@ -78,6 +78,7 @@ builder.Services.AddScoped<AlertaPendienteIngreso_TodosService>();
 builder.Services.AddScoped<AlertaStockAsignadoSinPLService>();
 builder.Services.AddScoped<AlertaPackingListService>();
 builder.Services.AddScoped<AlertaLoteReservadoMinimoService>();
+builder.Services.AddScoped<AlertaPackingListPendienteService>();
 builder.Services.AddScoped<ControlVencimientosService>();
 builder.Services.AddScoped<CorreoService>();
 builder.Services.AddScoped<PendientesIngreso_PpropiaJob>();
@@ -86,6 +87,7 @@ builder.Services.AddScoped<PendientesIngreso_TodosJob>();
 builder.Services.AddScoped<StockAsignadoSinPLJob>();
 builder.Services.AddScoped<PackingListModificadoJob>();
 builder.Services.AddScoped<LoteReservadoMinimoJob>();
+builder.Services.AddScoped<PackingListPendienteJob>();
 builder.Services.AddScoped<ControlVencimientosJob>();
 builder.Services.AddScoped<CorreoDestinoService>();
 builder.Services.AddScoped<IAlertaEjecucionLogService, LogService>();
@@ -254,9 +256,13 @@ RecurringJob.RemoveIfExists("Alerta_PackingList_Modificado");
 RecurringJob.RemoveIfExists("Respaldo_PackingList_0915");
 RecurringJob.RemoveIfExists("Respaldo_PackingList_1500");
 RecurringJob.RemoveIfExists("Alerta_LoteReservado_Minimo");
+RecurringJob.RemoveIfExists("Alerta_LoteReservado");
+RecurringJob.RemoveIfExists("Alerta_LoteReservados");
 RecurringJob.RemoveIfExists("Diagnostico_ControlVencimientos");
 RecurringJob.RemoveIfExists("ControlVencimientos_EnviarRevision");
 RecurringJob.RemoveIfExists("ControlVencimientos_LotesReservados");
+RecurringJob.RemoveIfExists("Alerta_PackingList_Pendiente");
+RecurringJob.RemoveIfExists("Alerta_PackingList_Pendientes");
 
 if (configuracionEjecucion.Habilitadas)
 {
@@ -306,22 +312,20 @@ if (configuracionEjecucion.Habilitadas)
         Horario("0 9 * * 1-5"),
         Opciones());
 
-    // Lotes reservados con saldo mínimo, lunes a viernes a las 09:05.
+    // Informe consolidado de lotes reservados, lunes a viernes a las 09:05.
     RecurringJob.AddOrUpdate<LoteReservadoMinimoJob>(
-        "Alerta_LoteReservado_Minimo",
+        "Alerta_LoteReservados",
         cola,
         x => x.Ejecutar(),
         Horario("5 9 * * 1-5"),
         Opciones());
 
-    // Primera etapa de la migración de portal.Job: consulta los candidatos y
-    // registra cantidades, pero no modifica inventario ni solicitudes. Queda
-    // sin horario para ejecutarlo manualmente desde el dashboard de Hangfire.
-    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
-        "Diagnostico_ControlVencimientos",
+    // Packing List sin avance durante más de dos días, a las 08:00.
+    RecurringJob.AddOrUpdate<PackingListPendienteJob>(
+        "Alerta_PackingList_Pendientes",
         cola,
-        x => x.EjecutarDiagnostico(),
-        Cron.Never(),
+        x => x.Ejecutar(),
+        Horario("0 8 * * 1-5"),
         Opciones());
 
     // Procesamiento real inicialmente manual para una prueba controlada.
@@ -329,13 +333,6 @@ if (configuracionEjecucion.Habilitadas)
         "ControlVencimientos_EnviarRevision",
         cola,
         x => x.EjecutarEnvioRevision(),
-        Cron.Never(),
-        Opciones());
-
-    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
-        "ControlVencimientos_LotesReservados",
-        cola,
-        x => x.EjecutarLotesReservados(),
         Cron.Never(),
         Opciones());
 

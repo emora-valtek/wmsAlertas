@@ -9,15 +9,18 @@ public sealed class NotificacionErrorService
     private readonly CorreoDestinoService _correoDestinoService;
     private readonly CorreoService _correoService;
     private readonly ILogger<NotificacionErrorService> _logger;
+    private readonly ConfiguracionEjecucionAlertas _configuracionEjecucion;
 
     public NotificacionErrorService(
         CorreoDestinoService correoDestinoService,
         CorreoService correoService,
-        ILogger<NotificacionErrorService> logger)
+        ILogger<NotificacionErrorService> logger,
+        ConfiguracionEjecucionAlertas configuracionEjecucion)
     {
         _correoDestinoService = correoDestinoService;
         _correoService = correoService;
         _logger = logger;
+        _configuracionEjecucion = configuracionEjecucion;
     }
 
     public async Task Notificar(
@@ -30,11 +33,20 @@ public sealed class NotificacionErrorService
 
         if (destinatarios.Count == 0)
         {
-            _logger.LogError(
-                "No hay destinatario activo del tipo {Tipo} para informar el fallo de {Proceso}.",
-                ConfiguracionAlertas.TipoDestinatarioErrores,
-                proceso);
-            return;
+            if (!_configuracionEjecucion.EsProduccion &&
+                _configuracionEjecucion.UsarCorreoPruebas &&
+                !string.IsNullOrWhiteSpace(_configuracionEjecucion.CorreoPruebas))
+            {
+                destinatarios.Add(_configuracionEjecucion.CorreoPruebas);
+            }
+            else
+            {
+                _logger.LogError(
+                    "No hay destinatario activo del tipo {Tipo} para informar el fallo de {Proceso}.",
+                    ConfiguracionAlertas.TipoDestinatarioErrores,
+                    proceso);
+                return;
+            }
         }
 
         var servidor = Environment.MachineName;
