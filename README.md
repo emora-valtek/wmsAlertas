@@ -18,8 +18,14 @@ Todos los horarios usan la zona `Pacific SA Standard Time` (Chile).
 | Respaldo Packing List AM | Lunes a viernes, 09:15 | Recupera alertas pendientes con más de 15 minutos. |
 | Respaldo Packing List PM | Lunes a viernes, 15:00 | Segundo barrido de alertas pendientes. |
 
-La alerta de vencimiento de lotes todavía se ejecuta en el WMS. Su traslado a
-este servicio es una migración futura, no una funcionalidad actualmente ausente.
+La migración del control de vencimientos desde `portal.Job` comenzó con el job
+manual `Diagnostico_ControlVencimientos`. Este job solo consulta y registra las
+cantidades que serían procesadas: no modifica inventario, no caduca solicitudes
+y no envía correos. Antes de probarlo se debe ejecutar
+`Database/En curso/20260904_ControlVencimientosDiagnostico.sql` en `PortalDB`. El script
+instala `spVencimientosObtener` y `spVencimientosRevisionar`. El procesamiento
+real queda disponible como `ControlVencimientos_EnviarRevision`, inicialmente
+sin horario automático.
 
 ## Ambientes y ejecución en QA
 

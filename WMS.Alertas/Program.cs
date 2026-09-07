@@ -78,6 +78,7 @@ builder.Services.AddScoped<AlertaPendienteIngreso_TodosService>();
 builder.Services.AddScoped<AlertaStockAsignadoSinPLService>();
 builder.Services.AddScoped<AlertaPackingListService>();
 builder.Services.AddScoped<AlertaLoteReservadoMinimoService>();
+builder.Services.AddScoped<ControlVencimientosService>();
 builder.Services.AddScoped<CorreoService>();
 builder.Services.AddScoped<PendientesIngreso_PpropiaJob>();
 builder.Services.AddScoped<PendientesIngreso_MercaderiaJob>();
@@ -85,6 +86,7 @@ builder.Services.AddScoped<PendientesIngreso_TodosJob>();
 builder.Services.AddScoped<StockAsignadoSinPLJob>();
 builder.Services.AddScoped<PackingListModificadoJob>();
 builder.Services.AddScoped<LoteReservadoMinimoJob>();
+builder.Services.AddScoped<ControlVencimientosJob>();
 builder.Services.AddScoped<CorreoDestinoService>();
 builder.Services.AddScoped<IAlertaEjecucionLogService, LogService>();
 builder.Services.AddScoped<NotificacionErrorService>();
@@ -252,6 +254,9 @@ RecurringJob.RemoveIfExists("Alerta_PackingList_Modificado");
 RecurringJob.RemoveIfExists("Respaldo_PackingList_0915");
 RecurringJob.RemoveIfExists("Respaldo_PackingList_1500");
 RecurringJob.RemoveIfExists("Alerta_LoteReservado_Minimo");
+RecurringJob.RemoveIfExists("Diagnostico_ControlVencimientos");
+RecurringJob.RemoveIfExists("ControlVencimientos_EnviarRevision");
+RecurringJob.RemoveIfExists("ControlVencimientos_LotesReservados");
 
 if (configuracionEjecucion.Habilitadas)
 {
@@ -307,6 +312,31 @@ if (configuracionEjecucion.Habilitadas)
         cola,
         x => x.Ejecutar(),
         Horario("5 9 * * 1-5"),
+        Opciones());
+
+    // Primera etapa de la migración de portal.Job: consulta los candidatos y
+    // registra cantidades, pero no modifica inventario ni solicitudes. Queda
+    // sin horario para ejecutarlo manualmente desde el dashboard de Hangfire.
+    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
+        "Diagnostico_ControlVencimientos",
+        cola,
+        x => x.EjecutarDiagnostico(),
+        Cron.Never(),
+        Opciones());
+
+    // Procesamiento real inicialmente manual para una prueba controlada.
+    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
+        "ControlVencimientos_EnviarRevision",
+        cola,
+        x => x.EjecutarEnvioRevision(),
+        Cron.Never(),
+        Opciones());
+
+    RecurringJob.AddOrUpdate<ControlVencimientosJob>(
+        "ControlVencimientos_LotesReservados",
+        cola,
+        x => x.EjecutarLotesReservados(),
+        Cron.Never(),
         Opciones());
 
     // Respaldo del disparo inmediato efectuado por WMS. Solo toma alertas que
