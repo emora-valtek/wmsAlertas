@@ -246,25 +246,6 @@ app.MapGet(
     .Produces(StatusCodes.Status200OK)
     .Produces(StatusCodes.Status503ServiceUnavailable);
 
-// Se eliminan primero las definiciones persistidas para que Hangfire no conserve
-// programaciones antiguas cuando cambian los horarios o se deshabilita un job.
-RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_ProduccionPropia");
-RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Mercaderia");
-RecurringJob.RemoveIfExists("Alerta_PendientesIngreso_Todos");
-RecurringJob.RemoveIfExists("Alerta_SAC_AsignadoSinPL");
-RecurringJob.RemoveIfExists("Alerta_PackingList_Modificado");
-RecurringJob.RemoveIfExists("Respaldo_PackingList_0915");
-RecurringJob.RemoveIfExists("Respaldo_PackingList_1500");
-RecurringJob.RemoveIfExists("Alerta_LoteReservado_Minimo");
-RecurringJob.RemoveIfExists("Alerta_LoteReservado");
-RecurringJob.RemoveIfExists("Alerta_LoteReservados");
-RecurringJob.RemoveIfExists("Diagnostico_ControlVencimientos");
-RecurringJob.RemoveIfExists("ControlVencimientos_EnviarRevision");
-RecurringJob.RemoveIfExists("ControlVencimientos_InformeRevision");
-RecurringJob.RemoveIfExists("ControlVencimientos_LotesReservados");
-RecurringJob.RemoveIfExists("Alerta_PackingList_Pendiente");
-RecurringJob.RemoveIfExists("Alerta_PackingList_Pendientes");
-
 if (configuracionEjecucion.Habilitadas)
 {
     var cola = configuracionEjecucion.EjecucionManual
