@@ -10,18 +10,38 @@ public class ExcelService
     {
         using var workbook = new XLWorkbook();
         var hoja = workbook.Worksheets.Add("Existencias");
-        var encabezados = new[] { "Estado anterior", "Producto", "Lote", "Fecha de vencimiento", "Fecha de envío a revisión" };
+        var encabezados = new[]
+        {
+            "Estado anterior", "Producto", "Lote", "Ubicación anterior",
+            "Cantidad", "Fecha de vencimiento", "Fecha de envío a revisión"
+        };
         for (var columna = 0; columna < encabezados.Length; columna++)
             hoja.Cell(1, columna + 1).Value = encabezados[columna];
 
         var fila = 2;
-        foreach (var item in existencias)
+        var grupos = existencias
+            .GroupBy(x => new
+            {
+                x.Estado,
+                x.ProductoCodigo,
+                x.LoteCodigo,
+                x.UbicacionAnterior,
+                x.FechaVencimiento,
+                x.FechaEnvioRevision
+            })
+            .OrderBy(x => x.Key.ProductoCodigo)
+            .ThenBy(x => x.Key.LoteCodigo)
+            .ThenBy(x => x.Key.UbicacionAnterior);
+
+        foreach (var grupo in grupos)
         {
-            hoja.Cell(fila, 1).Value = DescribirEstadoExistencia(item.Estado);
-            hoja.Cell(fila, 2).Value = item.ProductoCodigo;
-            hoja.Cell(fila, 3).Value = item.LoteCodigo;
-            hoja.Cell(fila, 4).Value = item.FechaVencimiento;
-            hoja.Cell(fila, 5).Value = item.FechaEnvioRevision;
+            hoja.Cell(fila, 1).Value = DescribirEstadoExistencia(grupo.Key.Estado);
+            hoja.Cell(fila, 2).Value = grupo.Key.ProductoCodigo;
+            hoja.Cell(fila, 3).Value = grupo.Key.LoteCodigo;
+            hoja.Cell(fila, 4).Value = grupo.Key.UbicacionAnterior;
+            hoja.Cell(fila, 5).Value = grupo.Count();
+            hoja.Cell(fila, 6).Value = grupo.Key.FechaVencimiento;
+            hoja.Cell(fila, 7).Value = grupo.Key.FechaEnvioRevision;
             fila++;
         }
 

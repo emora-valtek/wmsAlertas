@@ -9,6 +9,7 @@ public sealed class ExistenciaVencidaDiagnostico
     public string ProductoCodigo { get; set; } = string.Empty;
     public int LoteId { get; set; }
     public string LoteCodigo { get; set; } = string.Empty;
+    public string UbicacionAnterior { get; set; } = string.Empty;
     public DateTime FechaVencimiento { get; set; }
     public int MinimoVencimiento { get; set; }
     public DateTime FechaEnvioRevision { get; set; }
