@@ -7,6 +7,7 @@ public sealed class ExistenciaVencidaDiagnostico
     public int Estado { get; set; }
     public int ProductoId { get; set; }
     public string ProductoCodigo { get; set; } = string.Empty;
+    public string ProductoNombre { get; set; } = string.Empty;
     public int LoteId { get; set; }
     public string LoteCodigo { get; set; } = string.Empty;
     public string UbicacionAnterior { get; set; } = string.Empty;

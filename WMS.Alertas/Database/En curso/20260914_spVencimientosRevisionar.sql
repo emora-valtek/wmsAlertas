@@ -27,6 +27,7 @@ BEGIN
             ,X.LOT_Id AS LoteId
             ,X.XTN_Estado AS EstadoAnterior
             ,P.PRO_Codigo AS ProductoCodigo
+            ,P.PRO_Nombre AS ProductoNombre
             ,L.LOT_Codigo AS LoteCodigo
             ,ISNULL(N.NIV_Alias, '') AS UbicacionAnterior
             ,L.LOT_FechaVencimiento AS FechaVencimiento
@@ -106,10 +107,10 @@ BEGIN
             INSERT dbo.ControlVencimientoRevisionInforme
             (
                 EjecucionLogId, ExistenciaId, EstadoAnterior, ProductoCodigo,
-                LoteCodigo, UbicacionAnterior, FechaVencimiento, FechaEnvioRevision
+                ProductoNombre, LoteCodigo, UbicacionAnterior, FechaVencimiento, FechaEnvioRevision
             )
             SELECT @EjecucionLogId, ExistenciaId, EstadoAnterior, ProductoCodigo,
-                LoteCodigo, UbicacionAnterior, FechaVencimiento, FechaEnvioRevision
+                ProductoNombre, LoteCodigo, UbicacionAnterior, FechaVencimiento, FechaEnvioRevision
             FROM #Cambios;
         END;
 

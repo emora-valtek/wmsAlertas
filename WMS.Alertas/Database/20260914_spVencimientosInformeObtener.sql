@@ -12,6 +12,7 @@ BEGIN
         ,ExistenciaId
         ,EstadoAnterior AS Estado
         ,ProductoCodigo
+        ,ProductoNombre
         ,LoteCodigo
         ,UbicacionAnterior
         ,FechaVencimiento

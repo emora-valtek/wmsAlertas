@@ -12,7 +12,7 @@ public class ExcelService
         var hoja = workbook.Worksheets.Add("Existencias");
         var encabezados = new[]
         {
-            "Estado anterior", "Producto", "Lote", "Ubicación anterior",
+            "Estado anterior", "Código", "Producto", "Lote", "Ubicación anterior",
             "Cantidad", "Fecha de vencimiento", "Fecha de envío a revisión"
         };
         for (var columna = 0; columna < encabezados.Length; columna++)
@@ -24,6 +24,7 @@ public class ExcelService
             {
                 x.Estado,
                 x.ProductoCodigo,
+                x.ProductoNombre,
                 x.LoteCodigo,
                 x.UbicacionAnterior,
                 x.FechaVencimiento,
@@ -37,11 +38,12 @@ public class ExcelService
         {
             hoja.Cell(fila, 1).Value = DescribirEstadoExistencia(grupo.Key.Estado);
             hoja.Cell(fila, 2).Value = grupo.Key.ProductoCodigo;
-            hoja.Cell(fila, 3).Value = grupo.Key.LoteCodigo;
-            hoja.Cell(fila, 4).Value = grupo.Key.UbicacionAnterior;
-            hoja.Cell(fila, 5).Value = grupo.Count();
-            hoja.Cell(fila, 6).Value = grupo.Key.FechaVencimiento;
-            hoja.Cell(fila, 7).Value = grupo.Key.FechaEnvioRevision;
+            hoja.Cell(fila, 3).Value = grupo.Key.ProductoNombre;
+            hoja.Cell(fila, 4).Value = grupo.Key.LoteCodigo;
+            hoja.Cell(fila, 5).Value = grupo.Key.UbicacionAnterior;
+            hoja.Cell(fila, 6).Value = grupo.Count();
+            hoja.Cell(fila, 7).Value = grupo.Key.FechaVencimiento;
+            hoja.Cell(fila, 8).Value = grupo.Key.FechaEnvioRevision;
             fila++;
         }
 
