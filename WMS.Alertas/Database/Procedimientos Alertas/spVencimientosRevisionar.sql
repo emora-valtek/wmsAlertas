@@ -1,5 +1,6 @@
 /*
    EMORA 14-09-2026 SP envía existencias a revisión y conserva su ubicación anterior para el informe
+   exec spVencimientosRevisionar
 */
 
 CREATE OR ALTER PROCEDURE dbo.spVencimientosRevisionar

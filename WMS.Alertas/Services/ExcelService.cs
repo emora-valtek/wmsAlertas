@@ -5,6 +5,45 @@ namespace WMS.Alertas.Services;
 
 public class ExcelService
 {
+    public byte[] GenerarExcelDetallePesoProductosPeligrosos(
+        IEnumerable<ProductoPeligrosoPesoDetalle> registros)
+    {
+        using var workbook = new XLWorkbook();
+        var hoja = workbook.Worksheets.Add("Peso acumulado");
+        var encabezados = new[]
+        {
+            "Atributo", "Código", "Nombre", "Ubicación", "Estado",
+            "Peso unitario (kg)", "Cantidad de existencias", "Peso total (kg)"
+        };
+
+        for (var columna = 0; columna < encabezados.Length; columna++)
+            hoja.Cell(1, columna + 1).Value = encabezados[columna];
+
+        var fila = 2;
+        foreach (var registro in registros)
+        {
+            hoja.Cell(fila, 1).Value = registro.Atributo;
+            hoja.Cell(fila, 2).Value = registro.Codigo;
+            hoja.Cell(fila, 3).Value = registro.Nombre;
+            hoja.Cell(fila, 4).Value = registro.Ubicacion;
+            hoja.Cell(fila, 5).Value = registro.Estado;
+            hoja.Cell(fila, 6).Value = registro.PesoUnitario;
+            hoja.Cell(fila, 7).Value = registro.CantidadExistencias;
+            hoja.Cell(fila, 8).Value = registro.PesoTotal;
+            fila++;
+        }
+
+        hoja.Row(1).Style.Font.Bold = true;
+        hoja.Column(6).Style.NumberFormat.Format = "#,##0.00";
+        hoja.Column(8).Style.NumberFormat.Format = "#,##0.00";
+        hoja.Columns().AdjustToContents();
+        if (hoja.RangeUsed() != null) hoja.RangeUsed().SetAutoFilter();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
     public byte[] GenerarExcelExistenciasRevision(
         IEnumerable<ExistenciaVencidaDiagnostico> existencias)
     {

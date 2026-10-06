@@ -79,6 +79,7 @@ builder.Services.AddScoped<AlertaStockAsignadoSinPLService>();
 builder.Services.AddScoped<AlertaPackingListService>();
 builder.Services.AddScoped<AlertaLoteReservadoMinimoService>();
 builder.Services.AddScoped<AlertaPackingListPendienteService>();
+builder.Services.AddScoped<AlertaProductoPeligrosoPesoService>();
 builder.Services.AddScoped<ControlVencimientosService>();
 builder.Services.AddScoped<CorreoService>();
 builder.Services.AddScoped<PendientesIngreso_PpropiaJob>();
@@ -88,6 +89,7 @@ builder.Services.AddScoped<StockAsignadoSinPLJob>();
 builder.Services.AddScoped<PackingListModificadoJob>();
 builder.Services.AddScoped<LoteReservadoMinimoJob>();
 builder.Services.AddScoped<PackingListPendienteJob>();
+builder.Services.AddScoped<ProductoPeligrosoPesoJob>();
 builder.Services.AddScoped<ControlVencimientosJob>();
 builder.Services.AddScoped<CorreoDestinoService>();
 builder.Services.AddScoped<IAlertaEjecucionLogService, LogService>();
@@ -308,6 +310,15 @@ if (configuracionEjecucion.Habilitadas)
         cola,
         x => x.Ejecutar(),
         Horario("0 8 * * 1-5"),
+        Opciones());
+
+    // Anomalías de peso de productos peligrosos, lunes a viernes a las 08:05.
+    RecurringJob.RemoveIfExists("Alerta_ProductosPeligrosos_Peso");
+    RecurringJob.AddOrUpdate<ProductoPeligrosoPesoJob>(
+        "Alerta_Productos_Peligrosos",
+        cola,
+        x => x.Ejecutar(),
+        Horario("5 8 * * 1-5"),
         Opciones());
 
     // Procesa existencias de madrugada, de lunes a viernes; el informe se envía por separado.
