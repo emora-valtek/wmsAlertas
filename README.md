@@ -17,6 +17,7 @@ Todos los horarios usan la zona `Pacific SA Standard Time` (Chile).
 | Lotes reservados con saldo mínimo | Lunes a viernes, 09:05 | Notifica al solicitante cuando una reserva alcanza el mínimo. |
 | Respaldo Packing List AM | Lunes a viernes, 09:15 | Recupera alertas pendientes con más de 15 minutos. |
 | Packing List pendientes | Lunes a viernes, 08:00 | Informa Packing List con más de dos días sin avanzar en recolección o embalaje. |
+| Anomalías de peso en productos peligrosos | Lunes a viernes, 08:05 | Un correo con productos sin peso y peso acumulado superior a 3.000 kg de inflamables o 12.000 kg de peligrosos. |
 | Respaldo Packing List PM | Lunes a viernes, 15:00 | Segundo barrido de alertas pendientes. |
 
 El control de vencimientos procesa las existencias de lunes a viernes a las 02:00 y
