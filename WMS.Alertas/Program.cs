@@ -81,6 +81,7 @@ builder.Services.AddScoped<AlertaLoteReservadoMinimoService>();
 builder.Services.AddScoped<AlertaPackingListPendienteService>();
 builder.Services.AddScoped<AlertaProductoPeligrosoPesoService>();
 builder.Services.AddScoped<ControlVencimientosService>();
+builder.Services.AddScoped<ActualizacionProductosManagerService>();
 builder.Services.AddScoped<CorreoService>();
 builder.Services.AddScoped<PendientesIngreso_PpropiaJob>();
 builder.Services.AddScoped<PendientesIngreso_MercaderiaJob>();
@@ -91,6 +92,7 @@ builder.Services.AddScoped<LoteReservadoMinimoJob>();
 builder.Services.AddScoped<PackingListPendienteJob>();
 builder.Services.AddScoped<ProductoPeligrosoPesoJob>();
 builder.Services.AddScoped<ControlVencimientosJob>();
+builder.Services.AddScoped<ActualizacionProductosManagerJob>();
 builder.Services.AddScoped<CorreoDestinoService>();
 builder.Services.AddScoped<IAlertaEjecucionLogService, LogService>();
 builder.Services.AddScoped<NotificacionErrorService>();
@@ -100,6 +102,7 @@ builder.Services.Configure<ApiSecurityOptions>(
     builder.Configuration.GetSection(ApiSecurityOptions.SectionName));
 builder.Services.AddHealthChecks()
     .AddCheck<WmsAlertasHealthCheck>("wms_alertas");
+builder.Services.AddHttpClient<ManagerProductosClient>();
 
 builder.Services.AddHangfire(config =>
 {
@@ -319,6 +322,14 @@ if (configuracionEjecucion.Habilitadas)
         cola,
         x => x.Ejecutar(),
         Horario("5 8 * * 1-5"),
+        Opciones());
+
+    // Procesa existencias de madrugada, de lunes a viernes; el informe se envía por separado.
+    RecurringJob.AddOrUpdate<ActualizacionProductosManagerJob>(
+        "Actualizacion_Productos_Manager",
+        cola,
+        x => x.Ejecutar(),
+        Horario("0 1 * * 1-5"),
         Opciones());
 
     // Procesa existencias de madrugada, de lunes a viernes; el informe se envía por separado.
