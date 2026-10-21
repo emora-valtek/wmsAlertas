@@ -63,6 +63,28 @@ public class LogService : IAlertaEjecucionLogService
         });
     }
 
+    public async Task FinalizarOmitidoInventario(int id, string motivo)
+    {
+        using var connection = new SqlConnection(
+            _configuration.GetConnectionString("DefaultConnection"));
+
+        var sql = @"
+            UPDATE dbo.AlertasEjecucionLog
+            SET
+                 FechaFin = GETDATE()
+                ,Estado = 'OMITIDO_INVENTARIO'
+                ,CantidadRegistros = 0
+                ,Destinatarios = @Motivo
+                ,MensajeError = NULL
+            WHERE Id = @Id;";
+
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = id,
+            Motivo = motivo
+        });
+    }
+
     public async Task FinalizarError(int id, string mensajeError)
     {
         using var connection = new SqlConnection(

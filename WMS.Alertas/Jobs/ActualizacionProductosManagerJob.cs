@@ -8,13 +8,16 @@ public sealed class ActualizacionProductosManagerJob
 {
     private const string TipoLog = "ACTUALIZACION_PRODUCTOS_MANAGER";
     private readonly ActualizacionProductosManagerService _service;
+    private readonly BloqueoInventarioService _bloqueoInventarioService;
     private readonly IAlertaEjecucionLogService _logService;
 
     public ActualizacionProductosManagerJob(
         ActualizacionProductosManagerService service,
+        BloqueoInventarioService bloqueoInventarioService,
         IAlertaEjecucionLogService logService)
     {
         _service = service;
+        _bloqueoInventarioService = bloqueoInventarioService;
         _logService = logService;
     }
 
@@ -26,6 +29,15 @@ public sealed class ActualizacionProductosManagerJob
         try
         {
             logId = await _logService.Iniciar(TipoLog);
+            var bloqueo = await _bloqueoInventarioService.ObtenerBloqueo();
+            if (bloqueo is not null)
+            {
+                await _logService.FinalizarOmitidoInventario(
+                    logId,
+                    $"Omitido por {bloqueo.Descripcion}.");
+                return;
+            }
+
             var resultado = await _service.Actualizar(CancellationToken.None);
             await _logService.FinalizarOk(
                 logId,

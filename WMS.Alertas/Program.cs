@@ -82,6 +82,7 @@ builder.Services.AddScoped<AlertaPackingListPendienteService>();
 builder.Services.AddScoped<AlertaProductoPeligrosoPesoService>();
 builder.Services.AddScoped<ControlVencimientosService>();
 builder.Services.AddScoped<ActualizacionProductosManagerService>();
+builder.Services.AddScoped<BloqueoInventarioService>();
 builder.Services.AddScoped<CorreoService>();
 builder.Services.AddScoped<PendientesIngreso_PpropiaJob>();
 builder.Services.AddScoped<PendientesIngreso_MercaderiaJob>();

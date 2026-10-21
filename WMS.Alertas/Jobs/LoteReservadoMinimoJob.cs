@@ -19,6 +19,7 @@ public class LoteReservadoMinimoJob
     private readonly CorreoService _correoService;
     private readonly IAlertaEjecucionLogService _logService;
     private readonly ControlVencimientosService _controlVencimientosService;
+    private readonly BloqueoInventarioService _bloqueoInventarioService;
     private readonly WMS.Alertas.Global.ConfiguracionEjecucionAlertas _configuracionEjecucion;
     private readonly CorreoDestinoService _correoDestinoService;
 
@@ -27,6 +28,7 @@ public class LoteReservadoMinimoJob
         CorreoService correoService,
         IAlertaEjecucionLogService logService,
         ControlVencimientosService controlVencimientosService,
+        BloqueoInventarioService bloqueoInventarioService,
         WMS.Alertas.Global.ConfiguracionEjecucionAlertas configuracionEjecucion,
         CorreoDestinoService correoDestinoService)
     {
@@ -34,6 +36,7 @@ public class LoteReservadoMinimoJob
         _correoService = correoService;
         _logService = logService;
         _controlVencimientosService = controlVencimientosService;
+        _bloqueoInventarioService = bloqueoInventarioService;
         _configuracionEjecucion = configuracionEjecucion;
         _correoDestinoService = correoDestinoService;
     }
@@ -47,6 +50,15 @@ public class LoteReservadoMinimoJob
         try
         {
             logId = await _logService.Iniciar(TipoAlertaLog);
+            var bloqueo = await _bloqueoInventarioService.ObtenerBloqueo();
+            if (bloqueo is not null)
+            {
+                await _logService.FinalizarOmitidoInventario(
+                    logId,
+                    $"Omitido por {bloqueo.Descripcion}.");
+                return;
+            }
+
             var lotes = await _alertaService.ObtenerPendientes();
 
             await EjecutarConsolidado(logId, lotes);

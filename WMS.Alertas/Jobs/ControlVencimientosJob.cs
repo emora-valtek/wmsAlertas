@@ -12,6 +12,7 @@ namespace WMS.Alertas.Jobs;
 public sealed class ControlVencimientosJob
 {
     private readonly ControlVencimientosService _service;
+    private readonly BloqueoInventarioService _bloqueoInventarioService;
     private readonly IAlertaEjecucionLogService _logService;
     private readonly CorreoService _correoService;
     private readonly IConfiguration _configuration;
@@ -21,6 +22,7 @@ public sealed class ControlVencimientosJob
 
     public ControlVencimientosJob(
         ControlVencimientosService service,
+        BloqueoInventarioService bloqueoInventarioService,
         IAlertaEjecucionLogService logService,
         CorreoService correoService,
         IConfiguration configuration,
@@ -29,6 +31,7 @@ public sealed class ControlVencimientosJob
         ConfiguracionEjecucionAlertas configuracionEjecucion)
     {
         _service = service;
+        _bloqueoInventarioService = bloqueoInventarioService;
         _logService = logService;
         _correoService = correoService;
         _configuration = configuration;
@@ -46,6 +49,7 @@ public sealed class ControlVencimientosJob
         var procesadas = 0;
         var lotes = 0;
         var pendientes = 0;
+        string? motivoBloqueo = null;
         var reloj = Stopwatch.StartNew();
         var tamano = Math.Clamp(_configuration.GetValue<int>("ControlVencimientos:TamanoLote"), 1, 1000);
         var pausa = Math.Clamp(_configuration.GetValue<int>("ControlVencimientos:PausaEntreLotesSegundos"), 0, 30);
@@ -58,6 +62,13 @@ public sealed class ControlVencimientosJob
             logId = await _logService.Iniciar(tipoLog);
             while (procesadas < maximo && reloj.Elapsed < duracion)
             {
+                var bloqueo = await _bloqueoInventarioService.ObtenerBloqueo();
+                if (bloqueo is not null)
+                {
+                    motivoBloqueo = bloqueo.Descripcion;
+                    break;
+                }
+
                 var resultado = await _service.EnviarLoteARevision(
                     Math.Min(tamano, maximo - procesadas),
                     logId);
@@ -76,7 +87,23 @@ public sealed class ControlVencimientosJob
             var resumen = $"Procesadas: {procesadas}; lotes: {lotes}; pendientes: {pendientes}; " +
                           $"duración: {reloj.Elapsed:hh\\:mm\\:ss}; límite: {(limitado ? "sí" : "no")}.";
 
-            await _logService.FinalizarOk(logId, procesadas, resumen);
+            if (motivoBloqueo is null)
+            {
+                await _logService.FinalizarOk(logId, procesadas, resumen);
+            }
+            else if (procesadas == 0)
+            {
+                await _logService.FinalizarOmitidoInventario(
+                    logId,
+                    $"Omitido por {motivoBloqueo}.");
+            }
+            else
+            {
+                await _logService.FinalizarOk(
+                    logId,
+                    procesadas,
+                    $"{resumen} Interrumpido por {motivoBloqueo}.");
+            }
         }
         catch (Exception ex)
         {
