@@ -8,13 +8,20 @@ namespace WMS.Alertas.Services;
 public sealed class ManagerProductosClient
 {
     private const string SoapNamespace = "http://manager.cl/productos/";
+    private const int MaximoIntentosConexion = 3;
+    private static readonly TimeSpan PausaEntreIntentos = TimeSpan.FromMinutes(1);
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<ManagerProductosClient> _logger;
 
-    public ManagerProductosClient(HttpClient httpClient, IConfiguration configuration)
+    public ManagerProductosClient(
+        HttpClient httpClient,
+        IConfiguration configuration,
+        ILogger<ManagerProductosClient> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<ProductoManager>> ObtenerProductos(CancellationToken cancellationToken)
@@ -43,13 +50,7 @@ public sealed class ManagerProductosClient
             </soap:Envelope>
             """;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
-            Content = new StringContent(cuerpo, Encoding.UTF8, "text/xml")
-        };
-        request.Headers.Add("SOAPAction", "\"http://manager.cl/productos/ConsultaProd\"");
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await EnviarConReintentos(endpoint, cuerpo, cancellationToken);
         var respuesta = await response.Content.ReadAsStringAsync(cancellationToken);
         response.EnsureSuccessStatusCode();
 
@@ -64,5 +65,37 @@ public sealed class ManagerProductosClient
             .ToList();
 
         return productos;
+    }
+
+    private async Task<HttpResponseMessage> EnviarConReintentos(
+        string endpoint,
+        string cuerpo,
+        CancellationToken cancellationToken)
+    {
+        for (var intento = 1; ; intento++)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                {
+                    Content = new StringContent(cuerpo, Encoding.UTF8, "text/xml")
+                };
+                request.Headers.Add("SOAPAction", "\"http://manager.cl/productos/ConsultaProd\"");
+
+                return await _httpClient.SendAsync(request, cancellationToken);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode is null && intento < MaximoIntentosConexion)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "No fue posible conectar con Manager al intentar actualizar productos. " +
+                    "Se reintentará en {Pausa} (intento {Intento} de {MaximoIntentos}).",
+                    PausaEntreIntentos,
+                    intento,
+                    MaximoIntentosConexion);
+
+                await Task.Delay(PausaEntreIntentos, cancellationToken);
+            }
+        }
     }
 }
