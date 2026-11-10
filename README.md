@@ -25,12 +25,33 @@ envía su informe consolidado a las 07:45. El procesamiento y el correo son jobs
 independientes para evitar carga masiva durante la jornada.
 
 La migración del control de vencimientos desde `portal.Job` se implementa mediante
-el proceso manual `ControlVencimientos_EnviarRevision` y el control consolidado
-`Alerta_LoteReservados`. Antes de probarlos se debe ejecutar
-los archivos `Database/En curso/20260904_ControlVencimientosDiagnostico.sql` y
-`Database/En curso/20260904_spVencimientosRevisionar.sql` en `PortalDB`. Cada
-archivo instala un procedimiento. El procesamiento
-queda inicialmente sin horario automático.
+`ControlVencimientos_EnviarRevision` y el control consolidado `Alerta_LoteReservados`.
+
+## Base de datos
+
+Este repositorio no contiene objetos de base de datos. WMS.Alertas usa la misma base
+`PortalDB` que el WMS, y todos sus procedimientos, funciones y scripts se mantienen en
+el repositorio `PortalValtek`, carpeta `Portal.DB`, con las reglas de trabajo de esa
+carpeta (`Portal.DB/_EnCurso/` para lo pendiente de pasar a producción y
+`Portal.DB/Procedimientos/` como ubicación permanente).
+
+Procedimientos que invoca el servicio:
+
+| Procedimiento | Uso |
+| --- | --- |
+| `spAlerta_PendIngresoProdPropiaObtener`, `spAlerta_PendIngresoProdPropiaDetalle` | Pendientes de ingreso - producción propia |
+| `spAlerta_PendIngresoMercaderiaObtener`, `spAlerta_PendIngresoMercaderiaDetalle` | Pendientes de ingreso - mercadería |
+| `spAlerta_PendIngresoTodosObtener`, `spAlerta_PendIngresoTodosDetalle` | Pendientes de ingreso - consolidado |
+| `spAlerta_StockAsignadoSinPL` | Stock asignado sin Packing List |
+| `spAlertaLoteReservadoMinimoObtener`, `spAlertaLoteReservadoMinimoMarcarEnviada` | Lotes reservados con saldo mínimo |
+| `spLoteReservadosVencimientoObtener`, `spSolicitudLoteReservadoCaducar` | Caducidad de lotes reservados |
+| `spAlertaPackingListPendientesTomar`, `spAlertaPackingListMarcarEnviada`, `spAlertaPackingListMarcarError`, `spAlertaPackingListProcesamientoExpiradoLiberar` | Flujo de Packing List modificado |
+| `spPackingListPendienteObtener` | Packing List pendientes |
+| `spAlertaProductoPeligrosoPesoObtener`, `spAlertaProductoPeligrosoPesoDetalleObtener` | Anomalías de peso en productos peligrosos |
+| `spVencimientosRevisionar` | Control de vencimientos: envío a revisión |
+| `spVencimientosInformeObtener`, `spVencimientosInformeMarcar` | Control de vencimientos: informe |
+| `spProductoManagerCrear`, `spProductoManagerNombreActualizar` | Actualización de productos desde Manager |
+| `spAlertasCorreoDestinoObtener`, `spConfiguracionEmailObtener` | Destinatarios y configuración SMTP |
 
 ## Ambientes y ejecución en QA
 
@@ -130,7 +151,7 @@ IIS. No se deben escribir secretos reales en `appsettings.json`.
 Antes de publicar esta versión debe ejecutarse:
 
 ```text
-WMS.Alertas/Database/20260819_MonitoreoYRespaldoAlertas.sql
+PortalValtek/Portal.DB/Scripts/20260819_MonitoreoYRespaldoAlertas.sql
 ```
 
 El script:
@@ -215,7 +236,7 @@ encargados.
 Orden recomendado:
 
 1. Respaldar la base de datos.
-2. Ejecutar el script SQL de esta versión.
+2. Ejecutar los objetos de base de datos pendientes, desde `PortalValtek/Portal.DB/_EnCurso/`.
 3. Configurar `ASPNETCORE_ENVIRONMENT`, `ConnectionStrings__DefaultConnection`
    y `ApiSecurity__ApiKey`.
 4. Configurar la misma clave como `WmsAlertas__ApiKey` en el backend del WMS.
