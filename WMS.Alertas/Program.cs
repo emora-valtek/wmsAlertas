@@ -135,6 +135,17 @@ app.Logger.LogInformation(
     configuracionEjecucion.Modo,
     configuracionEjecucion.UsarCorreoPruebas);
 
+// Al reiniciar el servidor, IIS puede levantar esta aplicación antes de que SQL Server
+// termine de arrancar. Hangfire se conecta a la base al iniciar (dashboard y registro de
+// jobs) y, si falla, la aplicación queda caída (HTTP 500.30) hasta reciclar el grupo de
+// aplicaciones. Por eso se espera a que la base responda antes de seguir.
+// El tope (100 s) queda bajo el límite de arranque de IIS (startupTimeLimit, 120 s por
+// defecto); si la espera lo superara, IIS daría la aplicación por caída igual.
+await EsperarBaseDeDatos(
+    builder.Configuration.GetConnectionString("DefaultConnection"),
+    TimeSpan.FromSeconds(100),
+    app.Logger);
+
 GlobalJobFilters.Filters.Add(
     app.Services.GetRequiredService<JobFailureNotificationFilter>());
 
@@ -367,3 +378,62 @@ if (configuracionEjecucion.Habilitadas)
 }
 
 app.Run();
+
+// Intenta abrir una conexión cada 5 segundos hasta que la base responda o se cumpla el
+// tope. Si se cumple el tope, deja que el arranque siga: Hangfire fallará con el error
+// real de conexión, que queda en el registro de eventos.
+static async Task EsperarBaseDeDatos(
+    string? connectionString,
+    TimeSpan tope,
+    ILogger logger)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return;
+    }
+
+    // Tiempo de espera corto por intento, para reintentar seguido.
+    var conexion = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString)
+    {
+        ConnectTimeout = 5
+    }.ConnectionString;
+
+    var inicio = DateTime.UtcNow;
+    var intento = 0;
+
+    while (true)
+    {
+        intento++;
+        try
+        {
+            await using var connection = new Microsoft.Data.SqlClient.SqlConnection(conexion);
+            await connection.OpenAsync();
+
+            if (intento > 1)
+            {
+                logger.LogWarning(
+                    "La base de datos respondió en el intento {Intento}, tras {Segundos:N0} s de espera.",
+                    intento,
+                    (DateTime.UtcNow - inicio).TotalSeconds);
+            }
+
+            return;
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (DateTime.UtcNow - inicio < tope)
+        {
+            logger.LogWarning(
+                "La base de datos no responde (intento {Intento}): {Mensaje}. Se reintenta en 5 s.",
+                intento,
+                ex.Message);
+            await Task.Delay(TimeSpan.FromSeconds(5));
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex)
+        {
+            logger.LogError(
+                ex,
+                "La base de datos no respondió en {Segundos:N0} s; el arranque continúa y puede fallar.",
+                tope.TotalSeconds);
+            return;
+        }
+    }
+}
