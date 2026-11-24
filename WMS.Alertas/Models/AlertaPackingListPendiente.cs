@@ -10,7 +10,10 @@ public class AlertaPackingListPendiente
     // Identificación del evento y de la reserva lógica.
     public long AlertaPackingListId { get; set; }
     public Guid EventoId { get; set; }
-    public int PackingListId { get; set; }
+    // Sin PL en ASIGNACION_CANCELADA (stock asignado a la NV sin Packing List).
+    public int? PackingListId { get; set; }
+    // Documento de egreso (DOCEG_Id) de la Nota de Venta; agrupa los avisos sin PL.
+    public int? DocumentoEgresoId { get; set; }
     public int? DetallePackingListId { get; set; }
     public string TipoModificacion { get; set; } = string.Empty;
 

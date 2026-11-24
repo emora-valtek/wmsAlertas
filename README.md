@@ -100,6 +100,10 @@ En producción la petición encola el procesamiento. El job reserva filas de
 manera atómica, agrupa eventos por Packing List y vendedor, envía el correo y
 actualiza cada fila individualmente. En QA manual la petición no encola trabajo.
 
+Tipos de aviso: cambio de lote, baja de cantidad, devolución a SAC, PL cancelado desde
+bodega y stock asignado liberado (este último sin PL, agrupado por Nota de Venta). El
+correo llega al vendedor que creó la Nota de Venta.
+
 Si la llamada inmediata no ocurre, los respaldos de las 09:15 y 15:00 procesan
 las filas que continúen pendientes por más de 15 minutos. Una reserva abandonada
 por una caída se libera después de 60 minutos.
