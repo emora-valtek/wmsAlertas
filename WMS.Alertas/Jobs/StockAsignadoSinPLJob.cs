@@ -6,12 +6,15 @@ using WMS.Alertas.Services;
 namespace WMS.Alertas.Jobs;
 
 /// <summary>
-/// Envía la alerta diaria de productos con stock asignado que aún no tienen
-/// Packing List. Los PL devueltos no pertenecen a este proceso: se notifican
-/// mediante la cola inmediata de AlertaPackingList.
+/// Envía la alerta diaria de stock asignado que no avanza a despacho: el que
+/// aún no tiene Packing List y, desde el 24-11-2026, el que quedó en un PL
+/// devuelto a SAC. La devolución misma se avisa en el momento por la cola de
+/// AlertaPackingList; esta alerta la recuerda cada día mientras retenga stock.
 /// </summary>
 public class StockAsignadoSinPLJob
 {
+    private const string Asunto = "Alerta WMS - Stock asignado pendiente";
+
     private readonly AlertaStockAsignadoSinPLService _alertaService;
     private readonly CorreoService _correoService;
     private readonly CorreoDestinoService _correoDestinoService;
@@ -57,12 +60,12 @@ public class StockAsignadoSinPLJob
             {
                 var html = ArmarHtmlAsignadoSinPL(
                     $"Hola {grupo.Key.Nombre},",
-                    "Las siguientes Notas de venta presentan productos con stock asignado sin Packing List generado. Por favor revisa los siguientes casos:",
+                    "Las siguientes Notas de venta tienen stock asignado que no avanza a despacho. Por favor revisa los siguientes casos:",
                     grupo.ToList());
 
                 await _correoService.EnviarCorreo(
                     new List<string> { grupo.Key.Correo! },
-                    "Alerta WMS - Stock asignado sin PL",
+                    Asunto,
                     html);
             }
 
@@ -74,13 +77,13 @@ public class StockAsignadoSinPLJob
             {
                 var htmlResumen = ArmarHtmlAsignadoSinPL(
                     "",
-                    "Se encontraron Notas de venta con stock asignado sin Packing List generado. A continuación se muestra el resumen completo:",
+                    "Se encontraron Notas de venta con stock asignado que no avanza a despacho. A continuación se muestra el resumen completo:",
                     asignados,
                     incluirResponsable: true);
 
                 await _correoService.EnviarCorreo(
                     correosResumen,
-                    "Alerta WMS - Stock asignado sin PL",
+                    Asunto,
                     htmlResumen);
             }
 
@@ -106,7 +109,7 @@ public class StockAsignadoSinPLJob
         // la única diferencia es la columna opcional de responsable.
         var html = new StringBuilder();
 
-        html.AppendLine("<h3>Alerta WMS - Stock asignado sin Packing List</h3>");
+        html.AppendLine($"<h3>{Asunto}</h3>");
         html.AppendLine($"<p>{saludo}</p>");
         html.AppendLine($"<p>{mensaje}</p>");
 
@@ -117,6 +120,7 @@ public class StockAsignadoSinPLJob
             html.AppendLine("<th>Responsable NV</th>");
 
         html.AppendLine("<th>Nota Venta</th>");
+        html.AppendLine("<th>Packing List</th>");
         html.AppendLine("<th>Producto</th>");
         html.AppendLine("<th>Lote</th>");
         html.AppendLine("<th>Cantidad Asignada</th>");
@@ -132,6 +136,7 @@ public class StockAsignadoSinPLJob
                 html.AppendLine($"<td>{item.Nombre}</td>");
 
             html.AppendLine($"<td>{item.NotaVenta}</td>");
+            html.AppendLine($"<td>{DescribirPackingList(item)}</td>");
             html.AppendLine($"<td>{item.Producto}</td>");
             html.AppendLine($"<td>{item.Lote}</td>");
             html.AppendLine($"<td>{item.CantidadAsignada}</td>");
@@ -143,5 +148,16 @@ public class StockAsignadoSinPLJob
         html.AppendLine("</table>");
 
         return html.ToString();
+    }
+
+    // Dice al vendedor qué hacer con cada línea: generar el PL o resolver el devuelto.
+    private static string DescribirPackingList(StockAsignadoSinPL item)
+    {
+        if (!item.PackingListId.HasValue)
+            return "Sin PL";
+
+        return item.FechaDevolucion.HasValue
+            ? $"{item.PackingListId} (devuelto a SAC el {item.FechaDevolucion:dd-MM-yyyy})"
+            : $"{item.PackingListId} (devuelto a SAC)";
     }
 }

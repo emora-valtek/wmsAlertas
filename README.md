@@ -13,7 +13,7 @@ Todos los horarios usan la zona `Pacific SA Standard Time` (Chile).
 | Pendientes de ingreso - producción propia | Lunes a viernes, 08:30 | Informa existencias de producción propia pendientes de ingreso. |
 | Pendientes de ingreso - mercadería | Lunes a viernes, 08:35 | Informa mercadería pendiente de ingreso. |
 | Pendientes de ingreso - consolidado | Lunes a viernes, 08:40 | Envía el consolidado de pendientes. |
-| Stock asignado sin Packing List | Lunes a viernes, 09:00 | Informa stock asignado que todavía no tiene Packing List. |
+| Stock asignado sin Packing List | Lunes a viernes, 09:00 | Informa stock asignado que no avanza a despacho: sin Packing List o en un PL devuelto a SAC. Asunto «Stock asignado pendiente». |
 | Lotes reservados con saldo mínimo | Lunes a viernes, 09:05 | Notifica al solicitante cuando una reserva alcanza el mínimo. |
 | Respaldo Packing List AM | Lunes a viernes, 09:15 | Recupera alertas pendientes con más de 15 minutos. |
 | Packing List pendientes | Lunes a viernes, 08:00 | Informa Packing List con más de dos días sin avanzar en recolección o embalaje. |
